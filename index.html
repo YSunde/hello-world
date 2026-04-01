@@ -1,18 +1,76 @@
 <!DOCTYPE html>
-
-<html>
+<html lang="ru">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-  <title>my-first-website</title>
-  <LINK href="styles.css" rel="stylesheet" type="text/css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Pulse — современный сайт</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
+  <div class="bg-blur bg-blur--one"></div>
+  <div class="bg-blur bg-blur--two"></div>
 
-<img src="https://octodex.github.com/images/daftpunktocat-thomas.gif" id="octocat" alt="octocat-gif" />
+  <header class="container header">
+    <div class="logo">NEON<span>PULSE</span></div>
+    <nav class="nav">
+      <a href="#features">Возможности</a>
+      <a href="#showcase">Проекты</a>
+      <a href="#contact">Контакты</a>
+    </nav>
+    <button class="btn btn--ghost">Войти</button>
+  </header>
 
-<!-- Change this code here by copy and pasting your template on line 15 -->
-<p>Welcome to your first GitHub Pages website!</p>
+  <main class="container hero">
+    <section class="hero__content">
+      <p class="tag">⚡ Самый современный подход к дизайну</p>
+      <h1>Сайт, который выглядит как будущее</h1>
+      <p class="subtitle">
+        Минимализм, неоновые акценты и плавная анимация. Идеально для стартапа,
+        портфолио или wow-лендинга.
+      </p>
+      <div class="hero__actions">
+        <button class="btn btn--primary">Запустить проект</button>
+        <button class="btn btn--secondary">Смотреть демо</button>
+      </div>
+    </section>
 
+    <section class="hero__card" id="showcase">
+      <div class="card-glow"></div>
+      <h2>Realtime Dashboard</h2>
+      <p>Скорость, стиль и контроль в одном интерфейсе.</p>
+      <div class="stats">
+        <article>
+          <strong>99.9%</strong>
+          <span>Uptime</span>
+        </article>
+        <article>
+          <strong>120ms</strong>
+          <span>Latency</span>
+        </article>
+        <article>
+          <strong>+320%</strong>
+          <span>Growth</span>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <section class="container features" id="features">
+    <article class="feature">
+      <h3>Glassmorphism UI</h3>
+      <p>Чистая визуальная иерархия и полупрозрачные слои в стиле 2026.</p>
+    </article>
+    <article class="feature">
+      <h3>Motion-first</h3>
+      <p>Деликатные hover- и scroll-эффекты для ощущения живого продукта.</p>
+    </article>
+    <article class="feature" id="contact">
+      <h3>Mobile Ready</h3>
+      <p>Отлично смотрится на телефонах, планшетах и десктопах без доработок.</p>
+    </article>
+  </section>
 </body>
 </html>
