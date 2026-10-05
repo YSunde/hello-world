@@ -5,10 +5,10 @@
   "portsAttributes": {
     "8013": {
       "label": "Сайт КБ-13",
-      "onAutoForward": "openPreview"
+      "onAutoForward": "openBrowser"
     }
   },
-  "postStartCommand": "nohup node scripts/serve.mjs > /tmp/kb13-serve.log 2>&1 &",
+  "postStartCommand": "setsid nohup node scripts/serve.mjs > /tmp/kb13-serve.log 2>&1 < /dev/null &",
   "customizations": {
     "codespaces": {
       "openFiles": ["README.md"]
