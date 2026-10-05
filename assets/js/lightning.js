@@ -540,6 +540,19 @@ export class LightningField {
     this.draw();
   }
 
+  /* Прервать удар (например, пользователь прокрутил обратно) и остаться в текущем раскрытии. */
+  stop() {
+    if (this.raf) cancelAnimationFrame(this.raf);
+    this.raf = 0;
+    const a = this.anim;
+    this.anim = null;
+    this.heat = 0;
+    this.flash = 0;
+    this.intensity = this.o.rest;
+    this.draw();
+    a?.resolve?.();
+  }
+
   /* Мгновенно показать конечное состояние (reduced motion / без анимации). */
   settle(r = 1) {
     if (this.raf) cancelAnimationFrame(this.raf);

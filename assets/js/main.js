@@ -19,7 +19,7 @@ if (/[?&]grid\b/.test(location.search)) doc.classList.add('show-grid');
 
 const scrollToEl = (el) => el.scrollIntoView({ behavior: reduce() ? 'auto' : 'smooth', block: 'start' });
 
-/* ---------- иконки: однократная анимация ---------- */
+/* ---------- иконки: короткая анимация при каждом появлении (и при прокрутке вниз, и вверх) ---------- */
 function playIcon(svg) {
   if (!svg || reduce()) return;
   svg.classList.remove('is-anim');
@@ -31,12 +31,11 @@ function playIcon(svg) {
 const iconIO = new IntersectionObserver(
   (entries) => {
     for (const e of entries) {
-      if (!e.isIntersecting) continue;
-      playIcon(e.target);
-      iconIO.unobserve(e.target);
+      if (e.isIntersecting && !e.target._seen) playIcon(e.target);
+      e.target._seen = e.isIntersecting;
     }
   },
-  { threshold: 0.9, rootMargin: '0px 0px -12% 0px' }
+  { threshold: 0.9, rootMargin: '-6% 0px -12% 0px' }
 );
 $$('.faq__icon, .btn__icon').forEach((svg) => {
   if (svg.closest('.site-header')) return; // телефон в шапке — только при наведении
@@ -155,26 +154,61 @@ $$('[data-to-form]').forEach((a) =>
    МОЛНИИ
    ========================================================= */
 const fields = new Map();
-const onceIO = (el, threshold, cb) => {
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries)
-        if (e.isIntersecting) {
-          io.disconnect();
-          cb();
-        }
-    },
-    { threshold }
-  );
-  io.observe(el);
-};
-
 function makeField(name, opts) {
   const host = $(`[data-bolt="${name}"]`);
   if (!host) return null;
   const f = new LightningField(host, Object.assign({ reveal: 0 }, opts));
   fields.set(name, f);
   return f;
+}
+
+/* ---------- прокрутка в обе стороны ----------
+   Прогресс элемента: 0 — его верх у нижнего края экрана (start), 1 — верх поднялся до end.
+   Вниз — молния раскрывается и в конце «бьёт», вверх — втягивается обратно; рисунки так же
+   прорисовываются и стираются. При повторной прокрутке вниз всё проигрывается снова. */
+const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
+const scrubs = [];
+const addScrub = (el, start, end, fn) => el && scrubs.push({ el, start, end, fn, p: -1 });
+function scrubUpdate(force = false) {
+  const vh = innerHeight;
+  for (const s of scrubs) {
+    const r = s.el.getBoundingClientRect();
+    const p = clamp((s.start * vh - r.top) / ((s.start - s.end) * vh));
+    if (!force && Math.abs(p - s.p) < 0.002) continue;
+    s.p = p;
+    s.fn(p);
+  }
+}
+function boltScrub(f, el, { start = 0.95, end = 0.42, from = 0, to = 1, flash = true } = {}) {
+  if (!f) return;
+  if (reduce()) return f.settle(1);
+  f._armed = true;
+  addScrub(el, start, end, (p) => {
+    const r = clamp((p - from) / (to - from));
+    if (r < 0.985) {
+      if (f.anim) f.stop();
+      f._armed = true;
+      f.setReveal(r);
+    } else if (f._armed) {
+      f._armed = false;
+      f.strike({ from: Math.min(f.reveal, 0.985), to: 1, leader: 70, flash: flash && !touch() });
+    }
+  });
+}
+function drawDoodle(svg, p) {
+  const paths = svg._paths || (svg._paths = [...svg.querySelectorAll('path')]);
+  const st = 0.22;
+  paths.forEach((path, i) => {
+    const q = clamp(p * (1 + st * (paths.length - 1)) - i * st);
+    path.style.strokeDasharray = '1';
+    path.style.strokeDashoffset = String(1 - q);
+    if (path.classList.contains('dd-fill')) path.style.fillOpacity = String(clamp((q - 0.6) * 2.5));
+  });
+}
+function doodleScrub(svg, el, { start = 0.95, end = 0.45, span = 1 } = {}) {
+  if (!svg) return;
+  if (reduce()) return svg.classList.add('is-drawn');
+  addScrub(el, start, end, (p) => drawDoodle(svg, clamp(p / span)));
 }
 
 /* Hero: разряд за человеком с табличкой; открывается при прокрутке. */
@@ -242,6 +276,7 @@ addEventListener(
       ticking = false;
       if (heroVisible) heroUpdate();
       spineUpdate();
+      scrubUpdate();
       header?.classList.toggle('is-scrolled', scrollY > 24);
       toTopUpdate();
     });
@@ -292,11 +327,7 @@ const bands = [
     rest: 0.9,
   }),
 ];
-bands.forEach((f) => {
-  if (!f) return;
-  if (reduce()) return f.settle(1);
-  onceIO(f.host, 0.35, () => f.strike({ leader: 150, flash: !touch() }));
-});
+bands.forEach((f) => f && boltScrub(f, f.host, { start: 0.98, end: 0.5 }));
 
 /* Вопросы: «головная боль» — разряд из-за виска плачущего человека. */
 /* из тучки (рисунок) в макушку: конец канала уходит за волосы — фигура лежит выше слоя молнии */
@@ -319,15 +350,10 @@ const pain = makeField('pain', {
   step: 0.07,
   rest: 0.9,
 });
-if (pain) {
-  const cloud = $('.doodle--storm');
-  if (reduce()) pain.settle(1);
-  else
-    onceIO($('.questions__visual'), 0.3, () => {
-      cloud?.classList.add('is-drawn');
-      setTimeout(() => pain.strike({ leader: 170, flash: !touch() }), 520);
-    });
-}
+// сначала прорисовывается тучка, со второй половины прогресса из неё бьёт молния
+const painVisual = $('.questions__visual');
+doodleScrub($('.doodle--storm'), painVisual, { start: 1.05, end: 0.35, span: 0.5 });
+boltScrub(pain, painVisual, { start: 1.05, end: 0.35, from: 0.5, to: 1 });
 
 /* Услуги: «Разбор полётов» — разряд на листе заканчивается у кончика карандаша. */
 const pencil = makeField('pencil', {
@@ -341,10 +367,7 @@ const pencil = makeField('pencil', {
   reach: 0.22,
   rest: 0.92,
 });
-if (pencil) {
-  if (reduce()) pencil.settle(1);
-  else onceIO(pencil.host, 0.55, () => pencil.strike({ leader: 360, flash: false }));
-}
+boltScrub(pencil, pencil?.host, { start: 0.95, end: 0.4, flash: false });
 
 /* Кабели: короткая дуга между двумя адаптерами. */
 const cables = makeField('cables', {
@@ -363,16 +386,10 @@ const cables = makeField('cables', {
   step: 0.05,
   rest: 0.9,
 });
-if (cables) {
-  if (reduce()) cables.settle(1);
-  else onceIO(cables.host, 0.6, () => cables.strike({ leader: 90, flash: false }));
-}
+boltScrub(cables, cables?.host, { start: 0.9, end: 0.45, flash: false });
 
-/* Рисунки поверх изображений: прорисовываются один раз при появлении. */
-$$('[data-doodle]').forEach((svg) => {
-  if (reduce()) return svg.classList.add('is-drawn');
-  onceIO(svg.parentElement, 0.3, () => svg.classList.add('is-drawn'));
-});
+/* Рисунки поверх изображений: прорисовываются по прокрутке и стираются при прокрутке назад. */
+$$('[data-doodle]:not(.doodle--storm)').forEach((svg) => doodleScrub(svg, svg.parentElement, { start: 0.98, end: 0.5 }));
 
 /* Контакты: разряд от красной трубки в свободное поле. */
 const phoneBolt = makeField('phone', {
@@ -386,10 +403,7 @@ const phoneBolt = makeField('phone', {
   reach: 0.26,
   rest: 0.9,
 });
-if (phoneBolt) {
-  if (reduce()) phoneBolt.settle(1);
-  else onceIO(phoneBolt.host, 0.45, () => phoneBolt.strike({ leader: 180, flash: !touch() }));
-}
+boltScrub(phoneBolt, $('.contact__visual'), { start: 1, end: 0.45 });
 
 /* Услуги: линия-заряд связывает три уровня; номера «заряжаются», когда фронт до них доходит. */
 const pkgWrap = $('.packages-wrap');
@@ -507,7 +521,7 @@ $$('[data-faq-item]').forEach((item) => {
     btn.setAttribute('aria-expanded', String(open));
     if (open) {
       playIcon(item.querySelector('.faq__icon'));
-      if (pain && !reduce() && pain.anim == null) pain.strike({ leader: 120, flash: false, seed: (painSeed += 11) });
+      if (pain && !reduce() && !pain.anim && pain.reveal > 0.98) pain.strike({ leader: 120, flash: false, seed: (painSeed += 11) });
     }
   });
   btn.addEventListener('pointerenter', () => {
@@ -744,4 +758,6 @@ toTop?.addEventListener('click', () => {
 /* ---------- старт ---------- */
 header?.classList.toggle('is-scrolled', scrollY > 24);
 toTopUpdate();
+scrubUpdate(true);
+addEventListener('resize', () => scrubUpdate(true));
 mqReduce.addEventListener?.('change', () => fields.forEach((f) => f.settle(f.reveal || 1)));

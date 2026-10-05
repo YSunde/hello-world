@@ -1,0 +1,17 @@
+{
+  "name": "КБ-13 · сайт",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "forwardPorts": [8013],
+  "portsAttributes": {
+    "8013": {
+      "label": "Сайт КБ-13",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "postStartCommand": "nohup node scripts/serve.mjs > /tmp/kb13-serve.log 2>&1 &",
+  "customizations": {
+    "codespaces": {
+      "openFiles": ["README.md"]
+    }
+  }
+}

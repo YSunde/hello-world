@@ -2253,18 +2253,6 @@ button {
 .dd-fill {
   fill: var(--paper);
 }
-.js .doodle:not(.is-drawn) path {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-}
-.js .doodle:not(.is-drawn) .dd-fill {
-  fill-opacity: 0;
-}
-.js .doodle.is-drawn path {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-  transition: stroke-dashoffset 640ms var(--ease-out) calc(var(--i) * 110ms), fill-opacity 300ms ease calc(var(--i) * 110ms + 300ms);
-}
 /* тучка выше кадра: viewBox расширен вверх на 340 из 1536 */
 .doodle--storm {
   top: -22.14%;

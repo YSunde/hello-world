@@ -5,6 +5,20 @@
 - Дизайн-система и правила эффектов — [DESIGN.md](DESIGN.md)
 - Концепт и промпт видео-визитки — [docs/VIDEO_PROMPT.md](docs/VIDEO_PROMPT.md)
 
+## Как открыть
+
+**Постоянная ссылка (рекомендуется): GitHub Pages.** Сайт уже в ветке `master`. Один раз включите: репозиторий → Settings → Pages → Build and deployment → Source: *Deploy from a branch* → Branch: `master`, папка `/ (root)` → Save. Через 1–2 минуты сайт будет по адресу **https://ysunde.github.io/hello-world/** — эту ссылку можно отправлять, она работает всегда.
+
+**Codespaces.** Code → Codespaces → Create codespace on master. Сервер запускается сам (порт 8013, превью откроется справа). Чтобы поделиться: вкладка Ports → правый клик по 8013 → Port Visibility → Public → скопировать адрес. Ссылка живёт, пока Codespace запущен (он засыпает примерно через 30 минут без активности).
+
+**На своём компьютере** (нужен Node.js 18+): в папке проекта выполнить
+
+```bash
+node scripts/serve.mjs
+```
+
+и открыть http://localhost:8013/. Просто двойной клик по `index.html` не подойдёт: браузер не загрузит JS-модули и шрифты с `file://`.
+
 ## Структура
 
 ```
@@ -24,6 +38,8 @@ scripts/
   build.mjs              content.ru.json + site.config.json → index.html
   check-content.mjs      сверка текста страницы с content.ru.json
   render-video.mjs       покадровый рендер видео (Playwright + ffmpeg)
+  serve.mjs              локальный сервер одной командой (без зависимостей)
+.devcontainer/           настройка Codespaces: сервер стартует автоматически
 video/                   сцена и таймлайн видео-визитки
 ```
 
@@ -32,7 +48,7 @@ video/                   сцена и таймлайн видео-визитк�
 ```bash
 node scripts/build.mjs            # собрать index.html
 node scripts/check-content.mjs    # проверить, что все строки и цены на месте
-npx serve .                       # посмотреть локально
+node scripts/serve.mjs            # посмотреть локально: http://localhost:8013/
 node scripts/render-video.mjs     # пересобрать видео (нужны playwright и ffmpeg с libx264/libwebp)
 ```
 
