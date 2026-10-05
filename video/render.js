@@ -40,12 +40,12 @@ async function setup() {
   await Promise.all([inlineLogo($('logoA')), inlineLogo($('logoF')), document.fonts.ready]);
   await Promise.all([...document.images].map((im) => im.decode().catch(() => {})));
   const base = { dpr: 1, reveal: 0, widthRef: 900, minW: 0.8, maxW: 1.6 };
-  F.A = new LightningField($('fA'), { ...base, seed: 13, waypoints: () => brandWaypoints([0.06, 0.94], [0.94, 0.06]), branches: 16, sub: 2, twigs: 1, width: 7, reach: 0.22, rest: 0.95 });
-  F.C = new LightningField($('fC'), { ...base, seed: 29, waypoints: () => brandWaypoints([0.03, 0.985], [0.985, 0.02]), branches: 12, sub: 2, twigs: 1, width: 6.5, reach: 0.26, rest: 0.93 });
-  F.D = new LightningField($('fD'), { ...base, seed: 17, waypoints: () => brandWaypoints([0.724, 0.486], [0.07, 0.95]), branches: 11, sub: 2, twigs: 1, width: 5.5, reach: 0.2, rest: 0.93 });
-  F.E = new LightningField($('fE'), { ...base, seed: 23, waypoints: () => brandWaypoints([0.12, 0.71], [0.98, 0.04]), branches: 8, sub: 2, twigs: 1, width: 4.5, widthRef: 420, reach: 0.26, rest: 0.92 });
-  F.F = new LightningField($('fF'), { ...base, seed: 5, waypoints: [[0, 0.55], [0.3, 0.38], [0.62, 0.6], [1, 0.4]], branches: 22, sub: 2, twigs: 1, width: 3.8, widthRef: 150, minW: 1, maxW: 1.4, reach: 0.1, spread: 1.2, step: 0.05, rest: 0.9 });
-  F.Cut = new LightningField($('fCut'), { ...base, seed: 101, waypoints: () => brandWaypoints([-0.02, 1.02], [1.02, -0.02]), branches: 14, sub: 1, twigs: 0, width: 6, reach: 0.18, rest: 0 });
+  F.A = new LightningField($('fA'), { ...base, seed: 13, waypoints: () => brandWaypoints([0.06, 0.94], [0.94, 0.06]), branches: 6, sub: 1, twigs: 0, width: 6, reach: 0.18, step: 0.06, jag: 0.6, rest: 0.95 });
+  F.C = new LightningField($('fC'), { ...base, seed: 29, waypoints: () => brandWaypoints([0.03, 0.985], [0.985, 0.02]), branches: 5, sub: 1, twigs: 0, width: 6, reach: 0.2, step: 0.06, jag: 0.6, rest: 0.93 });
+  F.D = new LightningField($('fD'), { ...base, seed: 17, waypoints: () => brandWaypoints([0.724, 0.486], [0.07, 0.95]), branches: 5, sub: 1, twigs: 0, width: 5, reach: 0.18, step: 0.06, jag: 0.6, rest: 0.93 });
+  F.E = new LightningField($('fE'), { ...base, seed: 23, waypoints: () => brandWaypoints([0.12, 0.71], [0.98, 0.04]), branches: 4, sub: 1, twigs: 0, width: 4.5, widthRef: 420, reach: 0.22, step: 0.08, jag: 0.6, rest: 0.92 });
+  F.F = new LightningField($('fF'), { ...base, seed: 5, waypoints: [[0, 0.55], [0.3, 0.38], [0.62, 0.6], [1, 0.4]], branches: 8, sub: 1, twigs: 0, width: 3.8, widthRef: 150, minW: 1, maxW: 1.4, reach: 0.1, spread: 1.2, step: 0.05, rest: 0.9 });
+  F.Cut = new LightningField($('fCut'), { ...base, seed: 101, waypoints: () => brandWaypoints([-0.02, 1.02], [1.02, -0.02]), branches: 5, sub: 0, twigs: 0, width: 6, reach: 0.16, step: 0.06, jag: 0.6, rest: 0 });
 }
 
 /* разряд: до ts — пусто; затем лидер, удар, мерцание, «застывание»; опционально гаснет */

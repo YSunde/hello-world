@@ -66,14 +66,19 @@ add('окно', C.overlays.checklist.email_label);
 add('окно', C.overlays.checklist.submit);
 add('чат', C.overlays.chat.title);
 
-const missing = must.filter(([, s]) => !hay.includes(norm(s)));
+/* v2 «компактнее»: эти строки сокращены по решению заказчика («оставить только основной текст»).
+   Они остаются в content.ru.json и возвращаются одной правкой шаблона. */
+const TRIMMED = new Set([C.hero.slides[2].support, C.about.paragraphs[1]].map(norm));
+const trimmed = must.filter(([, s]) => TRIMMED.has(norm(s)));
+const missing = must.filter(([, s]) => !TRIMMED.has(norm(s)) && !hay.includes(norm(s)));
 // цены из пакетов — в формате таблицы
 const prices = C.comparison.rows.find((r) => r[0] === 'Цена пакета').slice(1);
 C.services.packages.forEach((p, i) => {
   const n = Number(prices[i].replace(/\D/g, ''));
   if (n !== p.price_rub) missing.push(['цена', `${p.title}: ${p.price_rub} ≠ ${prices[i]}`]);
 });
-console.log(`проверено строк: ${must.length}`);
+console.log(`проверено строк: ${must.length}, сознательно сокращено в v2: ${trimmed.length}`);
+trimmed.forEach(([l, s]) => console.log(`  − [${l}] ${s}`));
 if (missing.length) {
   console.log('НЕ НАЙДЕНО:');
   missing.forEach(([l, s]) => console.log(`  [${l}] ${s}`));

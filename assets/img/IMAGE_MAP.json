@@ -174,7 +174,42 @@
       "web_768": "images/web/12-contact-phone-person-768.webp",
       "generated": true,
       "documentary": false
+    },
+    {
+      "id": "06-contact-phone",
+      "title": "Телефон",
+      "placement": "Контакты: запасной кадр",
+      "alt": "Красная телефонная трубка на светлом фоне.",
+      "object_position": "70% 50%",
+      "crop_notes": "Основной контактный образ — персонаж 12.",
+      "width": 1536,
+      "height": 1024,
+      "aspect_ratio": "1536:1024",
+      "alpha": true,
+      "original": "images/original/06-contact-phone.png",
+      "web": "images/web/06-contact-phone.webp",
+      "web_768": "images/web/06-contact-phone-768.webp",
+      "generated": true,
+      "documentary": false,
+      "cutout": "Фон удалён (rembg / isnet-general-use)."
+    },
+    {
+      "id": "08-about-friendly-person",
+      "title": "Давай дружить",
+      "placement": "О нас",
+      "alt": "Постановочный персонаж приглашает к разговору.",
+      "object_position": "50% 100%",
+      "crop_notes": "Contain. Не подписывать как настоящего сотрудника.",
+      "width": 1024,
+      "height": 1536,
+      "aspect_ratio": "1024:1536",
+      "alpha": true,
+      "original": "images/original/08-about-friendly-person.png",
+      "web": "images/web/08-about-friendly-person.webp",
+      "web_768": "images/web/08-about-friendly-person-768.webp",
+      "generated": true,
+      "documentary": false
     }
   ],
-  "note": "На сайте используются 9 изображений. 01-hero-paper, 06-contact-phone и 08-about-friendly-person из комплекта не используются (по решению заказчика в «Давай дружить» нет человека; предметные 01/06 дублируют сюжеты персонажей)."
+  "note": "v2: используются 11 изображений; 01-hero-paper не используется."
 }

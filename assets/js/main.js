@@ -1,8 +1,10 @@
 /*
- * КБ-13 · поведение страницы.
+ * КБ-13 · поведение страницы (v2 «Гроза на бумаге»).
  * Без зависимостей. Всё содержимое видно и без JS; скрипт только добавляет взаимодействие и движение.
  */
-import { LightningField, brandWaypoints, arcPath } from './lightning.js';
+import { arcPath } from './lightning.js';
+import { Storm } from './storm.js';
+import { Rift } from './rift.js';
 
 const doc = document.documentElement;
 const $ = (s, r = document) => r.querySelector(s);
@@ -162,11 +164,195 @@ function makeField(name, opts) {
   return f;
 }
 
-/* ---------- прокрутка в обе стороны ----------
-   Прогресс элемента: 0 — его верх у нижнего края экрана (start), 1 — верх поднялся до end.
-   Вниз — молния раскрывается и в конце «бьёт», вверх — втягивается обратно; рисунки так же
-   прорисовываются и стираются. При повторной прокрутке вниз всё проигрывается снова. */
+/* =========================================================
+   ГРОЗА (v2): фон, удары по тапу, зоны с постоянной динамикой
+   ========================================================= */
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pageRect = (el) => {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
+};
+/* точка в пикселях исходного кадра → координаты страницы (img с object-fit: contain) */
+function imgPoint(img, fx, fy) {
+  const r = img.getBoundingClientRect();
+  const iw = +img.getAttribute('width');
+  const ih = +img.getAttribute('height');
+  const s = Math.min(r.width / iw, r.height / ih);
+  const pos = getComputedStyle(img).objectPosition.split(' ').map(parseFloat);
+  const ox = (r.width - iw * s) * ((isNaN(pos[0]) ? 50 : pos[0]) / 100);
+  const oy = (r.height - ih * s) * ((isNaN(pos[1]) ? 50 : pos[1]) / 100);
+  return { x: r.left + scrollX + ox + fx * s, y: r.top + scrollY + oy + fy * s };
+}
+const inView = (el, m = 0) => {
+  const r = el.getBoundingClientRect();
+  return r.bottom > m && r.top < innerHeight - m;
+};
+
+const storm = new Storm();
+let stormPref = 'on';
+try {
+  stormPref = localStorage.getItem('kb13-storm') || (reduce() ? 'off' : 'on');
+} catch {
+  stormPref = reduce() ? 'off' : 'on';
+}
+const toggleBtn = $('[data-storm-toggle]');
+function setStorm(on, save = true) {
+  storm.enabled = on;
+  toggleBtn?.setAttribute('aria-pressed', String(on));
+  toggleBtn?.setAttribute('aria-label', on ? 'Гроза: включена' : 'Гроза: выключена');
+  if (save)
+    try {
+      localStorage.setItem('kb13-storm', on ? 'on' : 'off');
+    } catch {}
+}
+setStorm(stormPref !== 'off', false);
+toggleBtn?.addEventListener('click', () => {
+  setStorm(!storm.enabled);
+  if (storm.enabled) {
+    const r = toggleBtn.getBoundingClientRect();
+    storm.strike({ ax: r.left + scrollX + r.width / 2 - 120, ay: scrollY - 10, bx: r.left + scrollX + r.width / 2, by: r.bottom + scrollY - 6, width: 3, layer: 'front', flash: 0.12, sparks: 18, scorch: false });
+  }
+});
+
+/* Hero: удары в «землю» рядом с человеком и в заголовок */
+const hero = $('#home');
+const heroTitle = $('#hero-title');
+const placardImg = $('.placard__img');
+const zap = (el) => {
+  if (!el) return;
+  el.classList.remove('zap');
+  void el.offsetWidth;
+  el.classList.add('zap');
+};
+function pickHero() {
+  const H = pageRect(hero);
+  const mobile = innerWidth < 900;
+  if (Math.random() < 0.4) {
+    const t = pageRect(heroTitle);
+    const bx = t.x + rnd(0.1, 0.9) * t.w;
+    const by = t.y + rnd(0.25, 0.85) * t.h;
+    return { ax: bx + rnd(-160, 160), ay: H.y - 4, bx, by, width: mobile ? 3.4 : 4.6, flash: 0.16, sparks: 24, shake: heroTitle, onHit: () => zap(heroTitle), scorch: false };
+  }
+  const p = pageRect(placardImg);
+  const side = Math.random() < 0.5 ? -1 : 1;
+  const bx = side < 0 ? p.x + rnd(-0.12, 0.12) * p.w : p.x + p.w * rnd(0.88, 1.08);
+  const by = H.y + H.h - 3;
+  return { ax: p.x + p.w * rnd(0.2, 0.8), ay: H.y - 4, bx, by, width: mobile ? 3.6 : 5, flash: 0.2, sparks: 30, shake: $('[data-placard]'), sparkDir: -Math.PI / 2 };
+}
+storm.ambient(hero, pickHero, { min: 2600, max: 5200, first: 650 });
+
+/* Удар по тапу/клику на пустом месте */
+const hint = $('[data-hint]');
+document.addEventListener('click', (e) => {
+  if (!storm.enabled || e.button !== 0) return;
+  if (e.target.closest('a, button, input, textarea, select, label, video, dialog, .chat, .phone-panel, .mobile-menu, [role="tab"], .table-scroll, .pkgs__track, summary')) return;
+  if (getSelection && String(getSelection()).length) return;
+  const bx = e.clientX + scrollX;
+  const by = e.clientY + scrollY;
+  storm.strike({ ax: bx + rnd(-200, 200), ay: scrollY - 12, bx, by, width: innerWidth < 700 ? 3.8 : 5, layer: 'front', flash: 0.24, sparks: 36, shake: e.target.closest('section, footer, .ticker') });
+  hint?.classList.add('is-done');
+});
+
+/* «Решим проблемы за 13 минут»: молния спускается по проводу в трубку */
+const callout = $('.callout');
+const receiverImg = $('.callout__img');
+if (callout && receiverImg)
+  storm.ambient(
+    callout,
+    () => {
+      const top = imgPoint(receiverImg, 1085, 0);
+      const hit = imgPoint(receiverImg, rnd(960, 1060), rnd(220, 300));
+      const vis = pageRect(receiverImg);
+      return { ax: top.x + rnd(-30, 30), ay: Math.max(pageRect(callout).y, vis.y) - 4, bx: hit.x, by: hit.y, width: innerWidth < 700 ? 3.4 : 4.6, layer: 'front', flash: 0.06, sparks: 30, scorch: false, shake: $('[data-receiver]') };
+    },
+    { min: 2400, max: 4600, first: 500 }
+  );
+$('.callout__btn')?.addEventListener('pointerenter', (e) => {
+  if (e.pointerType !== 'mouse' || !storm.enabled) return;
+  const r = pageRect(e.currentTarget);
+  storm.strike({ ax: r.x + r.w * rnd(0.2, 0.8), ay: pageRect(callout).y - 4, bx: r.x + r.w * rnd(0.3, 0.9), by: r.y + r.h * 0.9, width: 3.2, layer: 'front', flash: 0.05, sparks: 20, scorch: false });
+});
+
+/* Контакты: удар в трубку из-за спины */
+const contact = $('#contact');
+const contactImg = $('.contact__person');
+if (contact && contactImg)
+  storm.ambient(
+    contact,
+    () => {
+      if (!inView(contactImg, 60)) return null;
+      const hit = imgPoint(contactImg, 380, 340);
+      return { ax: hit.x + rnd(-80, 140), ay: pageRect(contact).y + 8, bx: hit.x, by: hit.y, width: 3.4, flash: 0.1, sparks: 24, scorch: false };
+    },
+    { min: 3800, max: 7000, first: 900 }
+  );
+
+/* Пакеты: карандаш рисует разряд, «идея» бьёт в блокнот, ток по кабелям */
+const pencilImg = $('#pkg-consultation .pkg__photo img');
+const chairImg = $('#pkg-mentorship .pkg__photo img');
+const cablesImg = $('#pkg-partnership .pkg__photo img');
+const hitPkg = (id) => {
+  const el = document.getElementById(id);
+  el?.classList.add('is-hit');
+  setTimeout(() => el?.classList.remove('is-hit'), 380);
+};
+if (pencilImg)
+  storm.ambient(
+    pencilImg.closest('.pkg__photo'),
+    () => {
+      const tip = imgPoint(pencilImg, 994, 456);
+      const from = imgPoint(pencilImg, rnd(260, 420), rnd(780, 900));
+      return { ax: from.x, ay: from.y, bx: tip.x, by: tip.y, width: 3.2, layer: 'front', sparks: 12, scorch: false, flash: 0, onHit: () => hitPkg('pkg-consultation') };
+    },
+    { min: 3200, max: 6000, first: 500 }
+  );
+if (chairImg)
+  storm.ambient(
+    chairImg.closest('.pkg__photo'),
+    () => {
+      const hit = imgPoint(chairImg, rnd(900, 1040), rnd(440, 470));
+      const p = pageRect(chairImg.closest('.pkg__photo'));
+      return { ax: hit.x + rnd(-60, 60), ay: p.y - 24, bx: hit.x, by: hit.y, width: 3.6, layer: 'front', sparks: 16, scorch: false, flash: 0, onHit: () => hitPkg('pkg-mentorship') };
+    },
+    { min: 3000, max: 5600, first: 800 }
+  );
+if (cablesImg) {
+  const fig = cablesImg.closest('.pkg__photo');
+  new IntersectionObserver((es) => fig.classList.toggle('is-live', es[0].isIntersecting && !reduce()), { threshold: 0.3 }).observe(fig);
+  storm.ambient(
+    fig,
+    () => {
+      const a = imgPoint(cablesImg, 1395, 338);
+      const b = imgPoint(cablesImg, 1405, 502);
+      return { ax: a.x, ay: a.y, bx: b.x, by: b.y, width: 2.4, layer: 'front', sparks: 12, scorch: false, flash: 0, smoke: false, onHit: () => hitPkg('pkg-partnership') };
+    },
+    { min: 2200, max: 4200, first: 600 }
+  );
+}
+
+/* ---------- разрыв ---------- */
+const riftEl = $('[data-rift]');
+let rift = null;
+if (riftEl) {
+  if (reduce()) riftEl.classList.add('is-static');
+  else rift = new Rift(riftEl, { storm });
+}
+
+/* ---------- лента: движется прокруткой; на быстрой прокрутке искрит ---------- */
+const ticker = $('[data-ticker]');
+const tickerTrack = ticker?.querySelector('.ticker__track');
+let lastY = scrollY;
+function tickerUpdate() {
+  if (!ticker || !inView(ticker, -200)) return;
+  const cycle = tickerTrack.scrollWidth / 4;
+  const off = ((scrollY * 0.55) % cycle + cycle) % cycle;
+  tickerTrack.style.transform = `translate3d(${-off.toFixed(1)}px,0,0)`;
+  const v = Math.abs(scrollY - lastY);
+  ticker.classList.toggle('is-fast', v > 40);
+}
+
+/* ---------- рисунки: прорисовка по прокрутке в обе стороны ---------- */
 const scrubs = [];
 const addScrub = (el, start, end, fn) => el && scrubs.push({ el, start, end, fn, p: -1 });
 function scrubUpdate(force = false) {
@@ -179,25 +365,9 @@ function scrubUpdate(force = false) {
     s.fn(p);
   }
 }
-function boltScrub(f, el, { start = 0.95, end = 0.42, from = 0, to = 1, flash = true } = {}) {
-  if (!f) return;
-  if (reduce()) return f.settle(1);
-  f._armed = true;
-  addScrub(el, start, end, (p) => {
-    const r = clamp((p - from) / (to - from));
-    if (r < 0.985) {
-      if (f.anim) f.stop();
-      f._armed = true;
-      f.setReveal(r);
-    } else if (f._armed) {
-      f._armed = false;
-      f.strike({ from: Math.min(f.reveal, 0.985), to: 1, leader: 70, flash: flash && !touch() });
-    }
-  });
-}
 function drawDoodle(svg, p) {
   const paths = svg._paths || (svg._paths = [...svg.querySelectorAll('path')]);
-  const st = 0.22;
+  const st = 0.2;
   paths.forEach((path, i) => {
     const q = clamp(p * (1 + st * (paths.length - 1)) - i * st);
     path.style.strokeDasharray = '1';
@@ -205,367 +375,104 @@ function drawDoodle(svg, p) {
     if (path.classList.contains('dd-fill')) path.style.fillOpacity = String(clamp((q - 0.6) * 2.5));
   });
 }
-function doodleScrub(svg, el, { start = 0.95, end = 0.45, span = 1 } = {}) {
-  if (!svg) return;
-  if (reduce()) return svg.classList.add('is-drawn');
-  addScrub(el, start, end, (p) => drawDoodle(svg, clamp(p / span)));
-}
-
-/* Hero: разряд за человеком с табличкой; открывается при прокрутке. */
-const hero = $('#home');
-const placard = $('[data-placard]');
-const HERO_BASE = 0.42;
-const heroSeeds = [13, 29, 47];
-const heroBolt = makeField('hero', {
-  seed: heroSeeds[0],
-  waypoints: () => brandWaypoints([0.03, 0.985], [0.985, 0.02]),
-  branches: 11,
-  sub: 2,
-  twigs: 1,
-  width: 5.4,
-  widthRef: 860,
-  reach: 0.26,
-  rest: 0.92,
+$$('[data-doodle]').forEach((svg) => {
+  if (reduce()) return;
+  addScrub(svg.parentElement, 1, 0.5, (p) => drawDoodle(svg, p));
 });
-let heroP = 0;
-let heroTop = 0;
-let heroH = 1;
-let heroVisible = true;
-const measureHero = () => {
-  const r = hero.getBoundingClientRect();
-  heroTop = r.top + scrollY;
-  heroH = r.height;
-};
-const heroLinked = () => mqDesk.matches && !reduce();
-function heroUpdate() {
-  const p = Math.min(1, Math.max(0, (scrollY - heroTop + (header?.offsetHeight || 0)) / Math.max(1, 0.8 * heroH)));
-  heroP = p;
-  if (heroBolt && heroIntroDone && heroLinked()) heroBolt.setReveal(HERO_BASE + (1 - HERO_BASE) * p);
-  if (placard) placard.style.transform = heroLinked() ? `translate3d(0, ${(-16 * p).toFixed(2)}px, 0)` : '';
-}
-let heroIntroDone = false;
-if (heroBolt) {
-  measureHero();
-  new ResizeObserver(() => {
-    measureHero();
-    heroUpdate();
-  }).observe(hero);
-  new IntersectionObserver((es) => (heroVisible = es[0].isIntersecting)).observe(hero);
-  const intro = () => {
-    if (reduce()) {
-      heroBolt.settle(1);
-      heroIntroDone = true;
-      return;
-    }
-    const to = heroLinked() ? Math.max(HERO_BASE, HERO_BASE + (1 - HERO_BASE) * heroP) : 1;
-    heroBolt.strike({ from: 0, to, leader: 220, flash: !touch() }).then(() => {
-      heroIntroDone = true;
-      heroUpdate();
-    });
-  };
-  (document.fonts?.ready || Promise.resolve()).then(() => setTimeout(intro, 260));
-}
 
-let ticking = false;
-addEventListener(
-  'scroll',
-  () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      ticking = false;
-      if (heroVisible) heroUpdate();
-      spineUpdate();
-      scrubUpdate();
-      header?.classList.toggle('is-scrolled', scrollY > 24);
-      toTopUpdate();
-    });
-  },
-  { passive: true }
-);
-
-/* Два событийных разряда между секциями. */
-const bands = [
-  makeField('band-1', {
-    seed: 5,
-    waypoints: [
-      [0.0, 0.62],
-      [0.3, 0.38],
-      [0.62, 0.58],
-      [1, 0.34],
-    ],
-    branches: 13,
-    sub: 2,
-    twigs: 1,
-    width: 3.1,
-    widthRef: 120,
-    minW: 0.5,
-    maxW: 1.15,
-    reach: 0.12,
-    spread: 1.2,
-    step: 0.06,
-    rest: 0.9,
-  }),
-  makeField('band-2', {
-    seed: 61,
-    waypoints: [
-      [0.0, 0.4],
-      [0.36, 0.62],
-      [0.7, 0.36],
-      [1, 0.6],
-    ],
-    branches: 13,
-    sub: 2,
-    twigs: 1,
-    width: 3.1,
-    widthRef: 120,
-    minW: 0.5,
-    maxW: 1.15,
-    reach: 0.12,
-    spread: 1.2,
-    step: 0.06,
-    rest: 0.9,
-  }),
-];
-bands.forEach((f) => f && boltScrub(f, f.host, { start: 0.98, end: 0.5 }));
-
-/* Вопросы: «головная боль» — разряд из-за виска плачущего человека. */
-/* из тучки (рисунок) в макушку: конец канала уходит за волосы — фигура лежит выше слоя молнии */
-const pain = makeField('pain', {
-  seed: 3,
-  waypoints: [
-    [0.52, 0.26],
-    [0.5, 0.48],
-    [0.44, 0.78],
-  ],
-  branches: 6,
-  sub: 1,
-  twigs: 1,
-  width: 3,
-  widthRef: 160,
-  minW: 0.7,
-  maxW: 1.2,
-  reach: 0.3,
-  spread: 0.9,
-  step: 0.07,
-  rest: 0.9,
-});
-// сначала прорисовывается тучка, со второй половины прогресса из неё бьёт молния
-const painVisual = $('.questions__visual');
-doodleScrub($('.doodle--storm'), painVisual, { start: 1.05, end: 0.35, span: 0.5 });
-boltScrub(pain, painVisual, { start: 1.05, end: 0.35, from: 0.5, to: 1 });
-
-/* Услуги: «Разбор полётов» — разряд на листе заканчивается у кончика карандаша. */
-const pencil = makeField('pencil', {
-  seed: 17,
-  waypoints: () => brandWaypoints([0.2, 0.84], [0.638, 0.452]),
-  branches: 6,
-  sub: 1,
-  twigs: 0,
-  width: 2.8,
-  widthRef: 420,
-  reach: 0.22,
-  rest: 0.92,
-});
-boltScrub(pencil, pencil?.host, { start: 0.95, end: 0.4, flash: false });
-
-/* Кабели: короткая дуга между двумя адаптерами. */
-const cables = makeField('cables', {
-  seed: 41,
-  waypoints: [
-    [0.912, 0.326],
-    [0.918, 0.49],
-  ],
-  branches: 4,
-  sub: 0,
-  twigs: 0,
-  width: 2.4,
-  widthRef: 400,
-  reach: 0.25,
-  spread: 1.3,
-  step: 0.05,
-  rest: 0.9,
-});
-boltScrub(cables, cables?.host, { start: 0.9, end: 0.45, flash: false });
-
-/* Рисунки поверх изображений: прорисовываются по прокрутке и стираются при прокрутке назад. */
-$$('[data-doodle]:not(.doodle--storm)').forEach((svg) => doodleScrub(svg, svg.parentElement, { start: 0.98, end: 0.5 }));
-
-/* Контакты: разряд от красной трубки в свободное поле. */
-const phoneBolt = makeField('phone', {
-  seed: 23,
-  waypoints: () => brandWaypoints([0.12, 0.86], [0.98, 0.04]),
-  branches: 7,
-  sub: 2,
-  twigs: 1,
-  width: 3.2,
-  widthRef: 300,
-  reach: 0.26,
-  rest: 0.9,
-});
-boltScrub(phoneBolt, $('.contact__visual'), { start: 1, end: 0.45 });
-
-/* Услуги: линия-заряд связывает три уровня; номера «заряжаются», когда фронт до них доходит. */
-const pkgWrap = $('.packages-wrap');
-const spineEl = $('.packages__spine');
-const pkgs = $$('[data-pkg]');
-let spineStops = [];
-let sparkT = 0;
-const measureSpine = () => {
-  if (!pkgWrap) return;
-  const r = pkgWrap.getBoundingClientRect();
-  spineStops = pkgs.map((p) => (p.getBoundingClientRect().top - r.top + 40) / r.height);
-};
-function spineUpdate() {
-  if (!pkgWrap || !spineEl) return;
-  const r = pkgWrap.getBoundingClientRect();
-  if (r.bottom < -200 || r.top > innerHeight + 200) return;
-  const p = reduce() ? 1 : Math.min(1, Math.max(0, (innerHeight * 0.62 - r.top) / r.height));
-  spineEl.style.setProperty('--p', p.toFixed(4));
-  pkgs.forEach((el, i) => el.classList.toggle('is-charged', p >= (spineStops[i] ?? 1)));
-  if (!reduce() && p > 0 && p < 1) {
-    spineEl.style.setProperty('--spark', '1');
-    clearTimeout(sparkT);
-    sparkT = setTimeout(() => spineEl.style.setProperty('--spark', '0'), 420);
-  }
-}
-if (pkgWrap) {
-  measureSpine();
-  new ResizeObserver(() => {
-    measureSpine();
-    spineUpdate();
-  }).observe(pkgWrap);
-  spineUpdate();
-}
-
-/* ---------- слайдер hero ---------- */
-const slider = $('[data-slider]');
-const slides = $$('[data-slide]');
-const counter = $('[data-current]');
-const ticks = $$('.slider-ctrl__ticks i');
-let current = 0;
-function setSlide(i, { strike = true } = {}) {
-  const n = slides.length;
-  i = (i + n) % n;
-  if (i === current) return;
-  const prev = slides[current];
-  prev.classList.remove('is-active', 'is-entering');
-  prev.inert = true;
-  prev.setAttribute('aria-hidden', 'true');
-  const next = slides[i];
-  next.inert = false;
-  next.removeAttribute('aria-hidden');
-  next.classList.add('is-active');
-  if (!reduce()) {
-    next.classList.remove('is-entering');
-    void next.offsetWidth;
-    next.classList.add('is-entering');
-  }
-  current = i;
-  if (counter) counter.textContent = String(i + 1);
-  ticks.forEach((t, k) => t.classList.toggle('is-on', k === i));
-  if (heroBolt && strike) {
-    if (reduce()) {
-      heroBolt.build(heroSeeds[i]);
-      heroBolt.settle(1);
-    } else {
-      const to = heroLinked() ? HERO_BASE + (1 - HERO_BASE) * heroP : 1;
-      heroIntroDone = false;
-      heroBolt
-        .fade(110)
-        .then(() => heroBolt.strike({ from: 0, to, leader: 170, flash: !touch(), seed: heroSeeds[i] }))
-        .then(() => {
-          heroIntroDone = true;
-          heroUpdate();
-        });
-    }
-  }
-}
-if (slider) {
-  slides.forEach((s, k) => {
-    if (k) {
-      s.inert = true;
-      s.setAttribute('aria-hidden', 'true');
-    }
-  });
-  $('[data-prev]')?.addEventListener('click', () => setSlide(current - 1));
-  $('[data-next]')?.addEventListener('click', () => setSlide(current + 1));
-  $('.hero__copy')?.addEventListener('keydown', (e) => {
-    if (e.target.closest('input, textarea')) return;
-    if (e.key === 'ArrowRight') setSlide(current + 1);
-    if (e.key === 'ArrowLeft') setSlide(current - 1);
-  });
-  let sx = null;
-  let sy = null;
-  slider.addEventListener('touchstart', (e) => ((sx = e.touches[0].clientX), (sy = e.touches[0].clientY)), { passive: true });
-  slider.addEventListener(
-    'touchend',
-    (e) => {
-      if (sx == null) return;
-      const dx = e.changedTouches[0].clientX - sx;
-      const dy = e.changedTouches[0].clientY - sy;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.4) setSlide(current + (dx < 0 ? 1 : -1));
-      sx = null;
-    },
-    { passive: true }
-  );
-}
-
-/* ---------- вопросы: аккордеон (можно открыть несколько) ---------- */
-let painSeed = 3;
-$$('[data-faq-item]').forEach((item) => {
+/* ---------- вопросы: молния из тучки в открытый вопрос; 6 ответов — тучка рассеивается ---------- */
+const cloudSvg = $('[data-cloud-svg]');
+const cryImg = $('.questions__person');
+const spent = new Set();
+$$('[data-faq-item]').forEach((item, idx) => {
   const btn = item.querySelector('.faq__btn');
   btn.addEventListener('click', () => {
     const open = !item.classList.contains('is-open');
     item.classList.toggle('is-open', open);
     btn.setAttribute('aria-expanded', String(open));
-    if (open) {
-      playIcon(item.querySelector('.faq__icon'));
-      if (pain && !reduce() && !pain.anim && pain.reveal > 0.98) pain.strike({ leader: 120, flash: false, seed: (painSeed += 11) });
+    if (!open) return;
+    playIcon(item.querySelector('.faq__icon'));
+    const ic = item.querySelector('.faq__icon').getBoundingClientRect();
+    const to = { x: ic.left + scrollX + ic.width / 2, y: ic.top + scrollY + ic.height / 2 };
+    let from = { x: to.x + rnd(-120, 120), y: scrollY - 10 };
+    if (cryImg && inView(cryImg)) from = imgPoint(cryImg, 470, -112);
+    storm.strike({ ax: from.x, ay: from.y, bx: to.x, by: to.y, width: 3.4, layer: 'front', flash: 0.1, sparks: 20, scorch: false, smoke: false, force: true, onHit: () => {
+      item.classList.add('is-hit');
+      setTimeout(() => item.classList.remove('is-hit'), 600);
+    } });
+    if (cloudSvg && !spent.has(idx)) {
+      spent.add(idx);
+      cloudSvg.querySelector(`[data-charge="${spent.size - 1}"]`)?.classList.add('is-spent');
+      cloudSvg.classList.remove('is-hit');
+      void cloudSvg.getBoundingClientRect();
+      cloudSvg.classList.add('is-hit');
+      if (spent.size === 6) setTimeout(() => cloudSvg.classList.add('is-clear'), 450);
     }
   });
-  btn.addEventListener('pointerenter', () => {
-    if (mqHover.matches) playIcon(item.querySelector('.faq__icon'));
+  btn.addEventListener('pointerenter', () => mqHover.matches && playIcon(item.querySelector('.faq__icon')));
+});
+
+/* ---------- пакеты: свайп на телефоне, «Подробнее» ---------- */
+const pkgTrack = $('[data-pkgs-track]');
+const pkgNow = $('[data-pkgs-current]');
+const pkgDots = $$('.pkgs__dots i');
+pkgTrack?.addEventListener(
+  'scroll',
+  () => {
+    const card = pkgTrack.querySelector('.pkg');
+    if (!card) return;
+    const i = Math.round(pkgTrack.scrollLeft / (card.offsetWidth + 12));
+    if (pkgNow) pkgNow.textContent = String(i + 1);
+    pkgDots.forEach((d, k) => d.classList.toggle('is-on', k === i));
+  },
+  { passive: true }
+);
+$$('[data-more]').forEach((b) =>
+  b.addEventListener('click', () => {
+    const more = document.getElementById(b.getAttribute('aria-controls'));
+    const open = b.getAttribute('aria-expanded') !== 'true';
+    more?.classList.toggle('is-open', open);
+    b.setAttribute('aria-expanded', String(open));
+    b.textContent = open ? 'Свернуть' : 'Подробнее';
+  })
+);
+
+/* ---------- сравнение на телефоне: вкладки пакетов ---------- */
+const tabs = $$('.cmp__tab');
+function selectTab(i, focus = false) {
+  tabs.forEach((t, k) => {
+    const on = k === i;
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+    const panel = document.getElementById(t.getAttribute('aria-controls'));
+    if (panel) {
+      panel.hidden = !on;
+      if (on) {
+        panel.classList.remove('is-flash');
+        void panel.offsetWidth;
+        panel.classList.add('is-flash');
+      }
+    }
+  });
+  if (focus) tabs[i].focus();
+  const r = tabs[i].getBoundingClientRect();
+  storm.strike({ ax: r.left + scrollX + r.width / 2 + rnd(-40, 40), ay: scrollY - 10, bx: r.left + scrollX + r.width / 2, by: r.top + scrollY + 4, width: 2.6, layer: 'front', sparks: 14, flash: 0, scorch: false, smoke: false });
+}
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => selectTab(i));
+  t.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') selectTab((i + 1) % tabs.length, true);
+    if (e.key === 'ArrowLeft') selectTab((i + tabs.length - 1) % tabs.length, true);
   });
 });
 
-/* ---------- модальные окна ---------- */
+/* ---------- модальное окно заявки ---------- */
 let opener = null;
-const modalBolts = new WeakMap();
 function openModal(dlg, from) {
   if (!dlg || dlg.open) return;
   opener = from || document.activeElement;
   dlg.showModal();
   doc.style.overflow = 'hidden';
-  const host = dlg.querySelector('.modal__bolt');
-  if (host && !reduce()) {
-    let f = modalBolts.get(host);
-    if (!f) {
-      f = new LightningField(host, {
-        seed: 9,
-        waypoints: [
-          [0.0, 0.5],
-          [0.35, 0.42],
-          [0.7, 0.58],
-          [1, 0.48],
-        ],
-        branches: 6,
-        sub: 1,
-        twigs: 0,
-        width: 2.2,
-        widthRef: 52,
-        minW: 1,
-        maxW: 1,
-        reach: 0.06,
-        spread: 1.3,
-        step: 0.12,
-        rest: 0,
-        glow: 1,
-      });
-      modalBolts.set(host, f);
-    }
-    f.strike({ leader: 140, flash: false, seed: Math.floor(Math.random() * 999) });
-  }
   setTimeout(() => dlg.querySelector('input')?.focus(), 30);
 }
 $$('dialog.modal').forEach((dlg) => {
@@ -580,6 +487,29 @@ $$('dialog.modal').forEach((dlg) => {
 });
 $$('[data-open]').forEach((b) => b.addEventListener('click', () => openModal(document.getElementById(b.dataset.open), b)));
 
+/* ---------- общий обработчик прокрутки ---------- */
+let ticking = false;
+addEventListener(
+  'scroll',
+  () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      rift?.update();
+      tickerUpdate();
+      scrubUpdate();
+      header?.classList.toggle('is-scrolled', scrollY > 24);
+      toTopUpdate();
+      lastY = scrollY;
+    });
+  },
+  { passive: true }
+);
+addEventListener('resize', () => {
+  rift?.measure();
+  scrubUpdate(true);
+});
 /* ---------- чат: провайдер не выбран — честное состояние ---------- */
 const chat = $('#chat-panel');
 let chatOpener = null;
@@ -754,10 +684,8 @@ toTop?.addEventListener('click', () => {
   title?.setAttribute('tabindex', '-1');
   title?.focus({ preventScroll: true });
 });
-
-/* ---------- старт ---------- */
 header?.classList.toggle('is-scrolled', scrollY > 24);
 toTopUpdate();
+rift?.update();
+tickerUpdate();
 scrubUpdate(true);
-addEventListener('resize', () => scrubUpdate(true));
-mqReduce.addEventListener?.('change', () => fields.forEach((f) => f.settle(f.reveal || 1)));
