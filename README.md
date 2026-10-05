@@ -1,90 +1,68 @@
-# Welcome to GitHub
+# КБ-13 — сайт креативного бюро
 
-Welcome to GitHub—where millions of developers work together on software. Ready to get started? Let’s learn how this all works by building and publishing your first GitHub Pages website!
+Одностраничный сайт: белое поле, крупный голос, красный разряд. Статика без сборщика и зависимостей — готова для GitHub Pages (`index.html` в корне).
 
-## Repositories
+- Дизайн-система и правила эффектов — [DESIGN.md](DESIGN.md)
+- Концепт и промпт видео-визитки — [docs/VIDEO_PROMPT.md](docs/VIDEO_PROMPT.md)
 
-Right now, we’re in your first GitHub **repository**. A repository is like a folder or storage space for your project. Your project's repository contains all its files such as code, documentation, images, and more. It also tracks every change that you—or your collaborators—make to each file, so you can always go back to previous versions of your project if you make any mistakes.
-
-This repository contains three important files: The HTML code for your first website on GitHub, the CSS stylesheet that decorates your website with colors and fonts, and the **README** file. It also contains an image folder, with one image file.
-
-## Describe your project
-
-You are currently viewing your project's **README** file. **_README_** files are like cover pages or elevator pitches for your project. They are written in plain text or [Markdown language](https://guides.github.com/features/mastering-markdown/), and usually include a paragraph describing the project, directions on how to use it, who authored it, and more.
-
-[Learn more about READMEs](https://help.github.com/en/articles/about-readmes)
-
-## Your first website
-
-**GitHub Pages** is a free and easy way to create a website using the code that lives in your GitHub repositories. You can use GitHub Pages to build a portfolio of your work, create a personal website, or share a fun project that you coded with the world. GitHub Pages is automatically enabled in this repository, but when you create new repositories in the future, the steps to launch a GitHub Pages website will be slightly different.
-
-[Learn more about GitHub Pages](https://pages.github.com/)
-
-## Rename this repository to publish your site
-
-We've already set-up a GitHub Pages website for you, based on your personal username. This repository is called `hello-world`, but you'll rename it to: `username.github.io`, to match your website's URL address. If the first part of the repository doesn’t exactly match your username, it won’t work, so make sure to get it right.
-
-Let's get started! To update this repository’s name, click the `Settings` tab on this page. This will take you to your repository’s settings page. 
-
-![repo-settings-image](https://user-images.githubusercontent.com/18093541/63130482-99e6ad80-bf88-11e9-99a1-d3cf1660b47e.png)
-
-Under the **Repository Name** heading, type: `username.github.io`, where username is your username on GitHub. Then click **Rename**—and that’s it. When you’re done, click your repository name or browser’s back button to return to this page.
-
-<img width="1039" alt="rename_screenshot" src="https://user-images.githubusercontent.com/18093541/63129466-956cc580-bf85-11e9-92d8-b028dd483fa5.png">
-
-Once you click **Rename**, your website will automatically be published at: https://your-username.github.io/. The HTML file—called `index.html`—is rendered as the home page and you'll be making changes to this file in the next step.
-
-Congratulations! You just launched your first GitHub Pages website. It's now live to share with the entire world
-
-## Making your first edit
-
-When you make any change to any file in your project, you’re making a **commit**. If you fix a typo, update a filename, or edit your code, you can add it to GitHub as a commit. Your commits represent your project’s entire history—and they’re all saved in your project’s repository.
-
-With each commit, you have the opportunity to write a **commit message**, a short, meaningful comment describing the change you’re making to a file. So you always know exactly what changed, no matter when you return to a commit.
-
-## Practice: Customize your first GitHub website by writing HTML code
-
-Want to edit the site you just published? Let’s practice commits by introducing yourself in your `index.html` file. Don’t worry about getting it right the first time—you can always build on your introduction later.
-
-Let’s start with this template:
+## Структура
 
 ```
-<p>Hello World! I’m [username]. This is my website!</p>
+index.html               готовая страница (генерируется)
+content.ru.json          весь маркетинговый текст (из прототипа, без правок)
+site.config.json         контакты, документы, видео, адреса приёма заявок, чат
+assets/
+  css/main.css           токены, сетка, все блоки, адаптив 320–1440+
+  js/lightning.js        движок реалистичной молнии (canvas)
+  js/main.js             поведение: меню, слайдер, аккордеон, окна, формы, эффекты
+  img/                   9 изображений WebP с прозрачностью + IMAGE_MAP.json
+  icons/                 17 SVG-иконок, icons.json (источник), sprite.svg
+  brand/                 logo.svg, icon.svg (оригиналы)
+  fonts/                 Sofia Sans Extra Condensed, Manrope (OFL)
+  video/                 видео-визитка MP4 + постер
+scripts/
+  build.mjs              content.ru.json + site.config.json → index.html
+  check-content.mjs      сверка текста страницы с content.ru.json
+  render-video.mjs       покадровый рендер видео (Playwright + ffmpeg)
+video/                   сцена и таймлайн видео-визитки
 ```
 
-To add your introduction, copy our template and click the edit pencil icon at the top right hand corner of the `index.html` file.
+## Команды
 
-<img width="997" alt="edit-this-file" src="https://user-images.githubusercontent.com/18093541/63131820-0794d880-bf8d-11e9-8b3d-c096355e9389.png">
-
-
-Delete this placeholder line:
-
-```
-<p>Welcome to your first GitHub Pages website!</p>
+```bash
+node scripts/build.mjs            # собрать index.html
+node scripts/check-content.mjs    # проверить, что все строки и цены на месте
+npx serve .                       # посмотреть локально
+node scripts/render-video.mjs     # пересобрать видео (нужны playwright и ffmpeg с libx264/libwebp)
 ```
 
-Then, paste the template to line 15 and fill in the blanks.
+Правки текста — только в `content.ru.json`, данных интеграций — только в `site.config.json`; затем `node scripts/build.mjs`.
 
-<img width="1032" alt="edit-githuboctocat-index" src="https://user-images.githubusercontent.com/18093541/63132339-c3a2d300-bf8e-11e9-8222-59c2702f6c42.png">
+## Что ещё не подключено (честные состояния на сайте)
 
+Сайт ничего не выдумывает: где данных нет, показано понятное состояние.
 
-When you’re done, scroll down to the `Commit changes` section near the bottom of the edit page. Add a short message explaining your change, like "Add my introduction", then click `Commit changes`.
+| Что | Где задать | Сейчас на сайте |
+| --- | --- | --- |
+| Телефон для «телефонировать» | `site.config.json → phone` | панель «номер ещё не задан» + переход к форме |
+| Телефоны, почта, соцсети | `contacts.phones / emails / socials` | «появятся после передачи данных» |
+| 3 документа пакетов и полное КП | `downloads.*` | кнопки сообщают «файл ещё не загружен» |
+| Приём заявок (форма, окно «13 минут») | `endpoints.contact`, `endpoints.lead` | демо-режим: «заявка не отправлена», данные остаются в форме |
+| Чек-лист «13 вопросов к себе» | `endpoints.checklist` + файл | «доставка не подключена — письмо не отправлено» |
+| Чат | `chat.provider` | панель «чат ещё не подключён» + переход к форме |
+| Живое видео команды | `video.url / poster / title` | стоит моушн-концепт визитки |
+| Реквизиты, политика, согласие на рассылку | `legal.*` | нейтральная строка в футере, место под согласие в окне чек-листа |
+| Лицензированный Druk Condensed | `assets/fonts` + `main.css` | резерв Sofia Sans Extra Condensed 900 |
 
+Формулировки из прототипа, требующие подтверждения заказчика, сохранены как есть — список в `content.ru.json → editorial_review`.
 
-<img width="1030" alt="add-my-username" src="https://user-images.githubusercontent.com/18093541/63131801-efbd5480-bf8c-11e9-9806-89273f027d16.png">
+## Изображения
 
-Once you click `Commit changes`, your changes will automatically be published on your GitHub Pages website. Refresh the page to see your new changes live in action.
+Все персонажи и предметы — постановочные сгенерированные кадры, не сотрудники и не кейсы бюро. У предметных кадров фон удалён (rembg / isnet-general-use), результат проверен вручную; кадрирование совпадает с исходниками, поэтому координаты из `IMAGE_MAP.json` действуют.
 
-:tada: You just made your first commit! :tada:
+## Проверки, выполненные перед выкладкой
 
-## Extra Credit: Keep on building!
-
-Change the placeholder Octocat gif on your GitHub Pages website by [creating your own personal Octocat emoji](https://myoctocat.com/build-your-octocat/) or [choose a different Octocat gif from our logo library here](https://octodex.github.com/). Add that image to line 12 of your `index.html` file, in place of the `<img src=` link.
-
-Want to add even more code and fun styles to your GitHub Pages website? [Follow these instructions](https://github.com/github/personal-website) to build a fully-fledged static website.
-
-![octocat](./images/create-octocat.png)
-
-## Everything you need to know about GitHub
-
-Getting started is the hardest part. If there’s anything you’d like to know as you get started with GitHub, try searching [GitHub Help](https://help.github.com). Our documentation has tutorials on everything from changing your repository settings to configuring GitHub from your command line.
+- 1440 / 1024 / 768 / 390 / 320 px: без горизонтальной прокрутки body, таблица прокручивается внутри, первая колонка ≤ 30%.
+- 42 автоматических сценария (Playwright): клавиатура, skip-link, слайдер, аккордеон, окна (Esc, фокус, возврат фокуса), валидация и демо-состояния форм, скачивания, чат, телефон, «Наверх», видео, меню, reduced motion, без ошибок консоли.
+- Без JavaScript всё содержимое читается.
+- `check-content.mjs`: 126 строк и все цены совпадают с `content.ru.json`.

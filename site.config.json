@@ -1,0 +1,35 @@
+{
+  "_note": "Реальные контакты, документы и интеграции. null / [] = данных ещё нет: сайт показывает честное состояние. После правки: node scripts/build.mjs",
+  "phone": null,
+  "contacts": {
+    "phones": [],
+    "emails": [],
+    "socials": []
+  },
+  "downloads": {
+    "consultation": null,
+    "mentorship": null,
+    "partnership": null,
+    "full_offer": null
+  },
+  "video": {
+    "url": "assets/video/kb13-vizitka.mp4",
+    "poster": "assets/video/kb13-vizitka-poster.webp",
+    "title": "Видео-визитка КБ-13",
+    "kind": "concept",
+    "_note": "Моушн-концепт, собранный из постановочных кадров комплекта. Живое видео команды подключается заменой url/poster."
+  },
+  "endpoints": {
+    "lead": null,
+    "contact": null,
+    "checklist": null
+  },
+  "chat": {
+    "provider": null
+  },
+  "legal": {
+    "requisites": null,
+    "privacy_url": null,
+    "mailing_consent": null
+  }
+}

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>КБ-13 · видео-визитка (сцена рендера)</title>
+<style>
+@font-face { font-family: 'KB Display'; src: url('../assets/fonts/sofia-sans-xcond-cyrillic.woff2') format('woff2'); font-weight: 700 1000; unicode-range: U+0400-045F, U+2116; }
+@font-face { font-family: 'KB Display'; src: url('../assets/fonts/sofia-sans-xcond-latin.woff2') format('woff2'); font-weight: 700 1000; unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: 'Manrope'; src: url('../assets/fonts/manrope-cyrillic.woff2') format('woff2'); font-weight: 400 800; unicode-range: U+0400-045F, U+2116; }
+@font-face { font-family: 'Manrope'; src: url('../assets/fonts/manrope-latin.woff2') format('woff2'); font-weight: 400 800; unicode-range: U+0000-00FF, U+2000-206F; }
+:root { --paper: #f5f4f0; --ink: #0b0b0b; --red: #f20d0d; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #222; }
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--paper); color: var(--ink); font-family: Manrope, sans-serif; }
+.scene { position: absolute; inset: 0; visibility: hidden; }
+.scene.on { visibility: visible; }
+.field { position: absolute; pointer-events: none; }
+.kb-bolt__glow, .kb-bolt__near, .kb-bolt__core { position: absolute; inset: 0; width: 100%; height: 100%; }
+.kb-bolt__glow { filter: blur(22px); }
+.kb-bolt__near { filter: blur(4px); }
+.title { position: absolute; left: 120px; top: 170px; margin: 0; font-family: 'KB Display'; font-weight: 900; text-transform: uppercase; line-height: .86; font-size: 168px; letter-spacing: -.005em; max-width: 980px; z-index: 3; }
+.text { position: absolute; left: 120px; margin: 0; font-size: 34px; line-height: 1.38; font-weight: 600; max-width: 780px; z-index: 3; }
+.text--muted { color: #666662; font-weight: 500; font-size: 28px; }
+.topics { position: absolute; left: 0; right: 0; top: 760px; display: flex; justify-content: center; gap: 0; margin: 0; padding: 0; list-style: none; font-weight: 700; font-size: 30px; letter-spacing: .08em; text-transform: uppercase; z-index: 3; }
+.topics li { display: flex; align-items: center; }
+.topics li:not(:last-child)::after { content: ''; width: 34px; height: 3px; margin: 0 28px; background: var(--red); transform: rotate(-32deg); }
+.img { position: absolute; z-index: 2; }
+.doodle { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke-linecap: round; stroke-linejoin: round; z-index: 4; }
+.doodle path { vector-effect: non-scaling-stroke; }
+.ink { stroke: var(--ink); } .red { stroke: var(--red); }
+.placard { position: absolute; right: 150px; bottom: -40px; height: 1060px; aspect-ratio: 1024/1536; z-index: 2; container-type: inline-size; }
+.placard img, .person img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.placard p { position: absolute; left: 17.5%; top: 41.8%; width: 65%; height: 20.3%; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center; font-family: 'KB Display'; font-weight: 900; text-transform: uppercase; font-size: 7.4cqw; line-height: .92; }
+.person { position: absolute; z-index: 2; aspect-ratio: 1024/1536; }
+.logo { position: absolute; left: 50%; top: 300px; height: 380px; translate: -50% 0; z-index: 3; }
+.logo svg { height: 100%; width: auto; display: block; overflow: visible; }
+.logo .logo-ink { fill: var(--ink); } .logo .logo-bolt { fill: #ea0506; }
+.flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 20; pointer-events: none; }
+.tint { position: absolute; inset: 0; background: radial-gradient(60% 60% at 50% 50%, rgba(242,13,13,.10), rgba(242,13,13,0)); opacity: 0; z-index: 19; }
+.mask-fade { -webkit-mask-image: linear-gradient(to right, #000 80%, transparent 99%), linear-gradient(to bottom, #000 76%, transparent 99%); -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, #000 80%, transparent 99%), linear-gradient(to bottom, #000 76%, transparent 99%); mask-composite: intersect; }
+.dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: var(--red); z-index: 4; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- A: разряд → логотип -->
+  <section class="scene" id="sA">
+    <div class="field" id="fA" style="inset:0"></div>
+    <div class="logo" id="logoA"></div>
+  </section>
+
+  <!-- B: Внимание – новая валюта! -->
+  <section class="scene" id="sB">
+    <h1 class="title" id="tB" style="max-width:900px">Внимание&nbsp;– новая валюта!</h1>
+    <p class="text" id="pB" style="top:690px;max-width:700px">Человек отдал своё время? Отдаст и деньги! Знаем на что ваша аудитория готова отдать своё время</p>
+    <img class="img" id="camB" src="../assets/img/04-content-camera.webp" style="right:0;bottom:0;width:1120px" alt="">
+    <svg class="doodle" id="focusB" viewBox="0 0 1920 1080"><path class="red" stroke-width="5" d="M1246 598V556H1288M1432 556H1474V598M1474 742V784H1432M1288 784H1246V742"/></svg>
+    <div class="dot" id="recB" style="left:1780px;top:120px"></div>
+  </section>
+
+  <!-- C: Эмоции - людям. Результат - бизнесу -->
+  <section class="scene" id="sC">
+    <div class="field" id="fC" style="left:760px;right:0;top:0;bottom:0"></div>
+    <h1 class="title" id="tC" style="top:150px;font-size:150px;max-width:860px">Эмоции&nbsp;- людям.<br>Результат&nbsp;- бизнесу</h1>
+    <p class="text" id="pC" style="top:720px;max-width:640px">Вызываем желание купить, через системный подход к маркетингу в соц.сетях.</p>
+    <div class="placard" id="plC">
+      <img src="../assets/img/07-hero-facts-person.webp" alt="">
+      <p>Одна система от идеи до заявки, без случайных постов.</p>
+      <svg class="doodle" id="ddC" viewBox="0 0 1024 1536"><path class="red" stroke-width="5" pathLength="1" d="M318 990C392 974 462 1000 534 984S676 972 712 992"/><path class="ink" stroke-width="3.5" pathLength="1" d="M300 184C303.6 211 303.6 211 330 214 303.6 217 303.6 217 300 244 296.4 217 296.4 217 270 214 296.4 211 296.4 211 300 184Z"/><path class="red" stroke-width="3.5" pathLength="1" d="M752 130C754.4 147.6 754.4 147.6 772 150 754.4 152.4 754.4 152.4 752 170 749.6 152.4 749.6 152.4 732 150 749.6 147.6 749.6 147.6 752 130Z"/></svg>
+    </div>
+  </section>
+
+  <!-- D: Креатив по расчету — карандаш «рисует» разряд -->
+  <section class="scene" id="sD">
+    <h1 class="title" id="tD" style="max-width:820px">Креатив по&nbsp;расчету</h1>
+    <p class="text" id="pD" style="top:540px;max-width:660px">Оригинальных рекламных решений превращаем «хочу» в «беру»</p>
+    <p class="text text--muted" id="sD2" style="top:680px;max-width:600px">Эмоции в рекламных решениях, как инструмент приводящий покупателей</p>
+    <div class="field" id="fD" style="inset:0"></div>
+    <img class="img mask-fade" id="handD" src="../assets/img/02-strategy-desk.webp" style="right:0;bottom:0;width:1500px" alt="">
+  </section>
+
+  <!-- E: Давай дружить! -->
+  <section class="scene" id="sE">
+    <h1 class="title" id="tE">Давай дружить!</h1>
+    <p class="text" id="pE" style="top:540px;max-width:720px">Поэтому ваш проект для нас не очередной, а тот самый! Нам ваш результат нужен НЕ меньше, чем вам.</p>
+    <div class="field" id="fE" style="left:1210px;width:620px;top:0;height:420px"></div>
+    <div class="person" id="psE" style="right:180px;bottom:-60px;height:1080px">
+      <img src="../assets/img/12-contact-phone-person.webp" alt="">
+      <svg class="doodle" id="ddE" viewBox="0 0 1024 1536"><path class="red" stroke-width="5" pathLength="1" d="M150 300A182 182 0 0 1 214 182"/><path class="red" stroke-width="5" pathLength="1" d="M92 300A240 240 0 0 1 174 120"/></svg>
+    </div>
+  </section>
+
+  <!-- F: финал -->
+  <section class="scene" id="sF">
+    <div class="field" id="fF" style="left:0;right:0;top:612px;height:150px"></div>
+    <div class="logo" id="logoF" style="top:150px;height:440px"></div>
+    <ul class="topics" id="topF" style="top:780px"><li>Креатив</li><li>Соцсети</li><li>Коммуникация</li></ul>
+  </section>
+
+  <div class="field" id="fCut" style="inset:0;z-index:18"></div>
+  <div class="tint" id="tint"></div>
+  <div class="flash" id="flash"></div>
+</div>
+<script type="module" src="render.js"></script>
+</body>
+</html>

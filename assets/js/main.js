@@ -1,0 +1,747 @@
+/*
+ * КБ-13 · поведение страницы.
+ * Без зависимостей. Всё содержимое видно и без JS; скрипт только добавляет взаимодействие и движение.
+ */
+import { LightningField, brandWaypoints, arcPath } from './lightning.js';
+
+const doc = document.documentElement;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const CFG = JSON.parse($('#kb-config')?.textContent || '{}');
+
+const mqReduce = matchMedia('(prefers-reduced-motion: reduce)');
+const mqHover = matchMedia('(hover: hover) and (pointer: fine)');
+const mqDesk = matchMedia('(min-width: 900px)');
+const reduce = () => mqReduce.matches;
+const touch = () => !mqHover.matches;
+
+if (/[?&]grid\b/.test(location.search)) doc.classList.add('show-grid');
+
+const scrollToEl = (el) => el.scrollIntoView({ behavior: reduce() ? 'auto' : 'smooth', block: 'start' });
+
+/* ---------- иконки: однократная анимация ---------- */
+function playIcon(svg) {
+  if (!svg || reduce()) return;
+  svg.classList.remove('is-anim');
+  void svg.getBoundingClientRect();
+  svg.classList.add('is-anim');
+  clearTimeout(svg._t);
+  svg._t = setTimeout(() => svg.classList.remove('is-anim'), 700);
+}
+const iconIO = new IntersectionObserver(
+  (entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      playIcon(e.target);
+      iconIO.unobserve(e.target);
+    }
+  },
+  { threshold: 0.9, rootMargin: '0px 0px -12% 0px' }
+);
+$$('.faq__icon, .btn__icon').forEach((svg) => {
+  if (svg.closest('.site-header')) return; // телефон в шапке — только при наведении
+  iconIO.observe(svg);
+});
+
+/* ---------- кнопки: разряд вдоль нижней кромки + иконка ---------- */
+let arcSeed = 7;
+function buttonArc(btn) {
+  const host = btn.querySelector('.btn__arc');
+  if (!host || reduce()) return;
+  const w = btn.offsetWidth + 4;
+  const d = arcPath(0, 7, w, 7, { seed: arcSeed++, rough: 0.16, minSeg: 7 });
+  host.innerHTML = `<svg viewBox="0 0 ${w} 14" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="arc-glow" d="${d}" pathLength="1"/><path class="arc-body" d="${d}" pathLength="1"/><path class="arc-core" d="${d}" pathLength="1"/></svg>`;
+  host.classList.remove('is-on');
+  void host.offsetWidth;
+  host.classList.add('is-on');
+}
+document.addEventListener(
+  'pointerenter',
+  (e) => {
+    if (!mqHover.matches || e.pointerType !== 'mouse') return;
+    const btn = e.target.closest?.('.btn');
+    if (!btn || e.target !== btn) return;
+    buttonArc(btn);
+    playIcon(btn.querySelector('.btn__icon'));
+  },
+  true
+);
+
+/* ---------- шапка ---------- */
+const header = $('[data-header]');
+const logoLink = $('[data-logo]');
+logoLink?.addEventListener('pointerenter', () => {
+  if (reduce()) return;
+  logoLink.classList.remove('is-zap');
+  void logoLink.offsetWidth;
+  logoLink.classList.add('is-zap');
+});
+
+// подсветка текущего раздела
+const navLinks = $$('.nav__link');
+const spy = new IntersectionObserver(
+  (entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      const id = '#' + e.target.id;
+      navLinks.forEach((a) => a.setAttribute('aria-current', String(a.getAttribute('href') === id)));
+    }
+  },
+  { rootMargin: '-45% 0px -50% 0px' }
+);
+['home', 'about', 'questions', 'services', 'contact'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (el) spy.observe(el);
+});
+
+/* ---------- мобильное меню ---------- */
+const menuBtn = $('[data-menu-toggle]');
+const menu = $('#mobile-menu');
+function setMenu(open, { focusBack = true } = {}) {
+  if (!menu) return;
+  menu.hidden = !open;
+  menuBtn.setAttribute('aria-expanded', String(open));
+  menuBtn.setAttribute('aria-label', open ? 'Закрыть меню' : 'Открыть меню');
+  menuBtn.querySelector('use')?.setAttribute('href', open ? '#kb-close' : '#kb-menu');
+  doc.style.overflow = open ? 'hidden' : '';
+  if (open) menu.querySelector('a')?.focus();
+  else if (focusBack) menuBtn.focus();
+}
+menuBtn?.addEventListener('click', () => setMenu(menu.hidden));
+menu?.addEventListener('click', (e) => {
+  if (e.target.closest('a')) setMenu(false, { focusBack: false });
+});
+
+/* ---------- «телефонировать» без номера: честная панель ---------- */
+const phoneBtn = $('[data-phone-toggle]');
+const phonePanel = $('#phone-panel');
+function setPhone(open, { focusBack = true } = {}) {
+  if (!phonePanel) return;
+  phonePanel.hidden = !open;
+  phoneBtn.setAttribute('aria-expanded', String(open));
+  if (open) phonePanel.querySelector('a, button')?.focus();
+  else if (focusBack) phoneBtn.focus();
+}
+phoneBtn?.addEventListener('click', () => setPhone(phonePanel.hidden));
+$('[data-phone-close]')?.addEventListener('click', () => setPhone(false));
+document.addEventListener('click', (e) => {
+  if (phonePanel && !phonePanel.hidden && !e.target.closest('#phone-panel, [data-phone-toggle]')) setPhone(false, { focusBack: false });
+});
+$$('[data-phone-hover]').forEach((el) =>
+  el.addEventListener('pointerenter', () => playIcon(el.querySelector('.icon--phone')))
+);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (menu && !menu.hidden) setMenu(false);
+  else if (phonePanel && !phonePanel.hidden) setPhone(false);
+  else if (chat && !chat.hidden) setChat(false);
+});
+
+/* ---------- переход к форме: прокрутка + фокус на заголовок формы ---------- */
+const formTitle = $('#form-title');
+$$('[data-to-form]').forEach((a) =>
+  a.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (phonePanel && !phonePanel.hidden) setPhone(false, { focusBack: false });
+    if (chat && !chat.hidden) setChat(false, { focusBack: false });
+    scrollToEl($('#contact'));
+    formTitle?.focus({ preventScroll: true });
+    history.replaceState(null, '', '#contact');
+  })
+);
+
+/* =========================================================
+   МОЛНИИ
+   ========================================================= */
+const fields = new Map();
+const onceIO = (el, threshold, cb) => {
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries)
+        if (e.isIntersecting) {
+          io.disconnect();
+          cb();
+        }
+    },
+    { threshold }
+  );
+  io.observe(el);
+};
+
+function makeField(name, opts) {
+  const host = $(`[data-bolt="${name}"]`);
+  if (!host) return null;
+  const f = new LightningField(host, Object.assign({ reveal: 0 }, opts));
+  fields.set(name, f);
+  return f;
+}
+
+/* Hero: разряд за человеком с табличкой; открывается при прокрутке. */
+const hero = $('#home');
+const placard = $('[data-placard]');
+const HERO_BASE = 0.42;
+const heroSeeds = [13, 29, 47];
+const heroBolt = makeField('hero', {
+  seed: heroSeeds[0],
+  waypoints: () => brandWaypoints([0.03, 0.985], [0.985, 0.02]),
+  branches: 11,
+  sub: 2,
+  twigs: 1,
+  width: 5.4,
+  widthRef: 860,
+  reach: 0.26,
+  rest: 0.92,
+});
+let heroP = 0;
+let heroTop = 0;
+let heroH = 1;
+let heroVisible = true;
+const measureHero = () => {
+  const r = hero.getBoundingClientRect();
+  heroTop = r.top + scrollY;
+  heroH = r.height;
+};
+const heroLinked = () => mqDesk.matches && !reduce();
+function heroUpdate() {
+  const p = Math.min(1, Math.max(0, (scrollY - heroTop + (header?.offsetHeight || 0)) / Math.max(1, 0.8 * heroH)));
+  heroP = p;
+  if (heroBolt && heroIntroDone && heroLinked()) heroBolt.setReveal(HERO_BASE + (1 - HERO_BASE) * p);
+  if (placard) placard.style.transform = heroLinked() ? `translate3d(0, ${(-16 * p).toFixed(2)}px, 0)` : '';
+}
+let heroIntroDone = false;
+if (heroBolt) {
+  measureHero();
+  new ResizeObserver(() => {
+    measureHero();
+    heroUpdate();
+  }).observe(hero);
+  new IntersectionObserver((es) => (heroVisible = es[0].isIntersecting)).observe(hero);
+  const intro = () => {
+    if (reduce()) {
+      heroBolt.settle(1);
+      heroIntroDone = true;
+      return;
+    }
+    const to = heroLinked() ? Math.max(HERO_BASE, HERO_BASE + (1 - HERO_BASE) * heroP) : 1;
+    heroBolt.strike({ from: 0, to, leader: 220, flash: !touch() }).then(() => {
+      heroIntroDone = true;
+      heroUpdate();
+    });
+  };
+  (document.fonts?.ready || Promise.resolve()).then(() => setTimeout(intro, 260));
+}
+
+let ticking = false;
+addEventListener(
+  'scroll',
+  () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      if (heroVisible) heroUpdate();
+      spineUpdate();
+      header?.classList.toggle('is-scrolled', scrollY > 24);
+      toTopUpdate();
+    });
+  },
+  { passive: true }
+);
+
+/* Два событийных разряда между секциями. */
+const bands = [
+  makeField('band-1', {
+    seed: 5,
+    waypoints: [
+      [0.0, 0.62],
+      [0.3, 0.38],
+      [0.62, 0.58],
+      [1, 0.34],
+    ],
+    branches: 13,
+    sub: 2,
+    twigs: 1,
+    width: 3.1,
+    widthRef: 120,
+    minW: 0.5,
+    maxW: 1.15,
+    reach: 0.12,
+    spread: 1.2,
+    step: 0.06,
+    rest: 0.9,
+  }),
+  makeField('band-2', {
+    seed: 61,
+    waypoints: [
+      [0.0, 0.4],
+      [0.36, 0.62],
+      [0.7, 0.36],
+      [1, 0.6],
+    ],
+    branches: 13,
+    sub: 2,
+    twigs: 1,
+    width: 3.1,
+    widthRef: 120,
+    minW: 0.5,
+    maxW: 1.15,
+    reach: 0.12,
+    spread: 1.2,
+    step: 0.06,
+    rest: 0.9,
+  }),
+];
+bands.forEach((f) => {
+  if (!f) return;
+  if (reduce()) return f.settle(1);
+  onceIO(f.host, 0.35, () => f.strike({ leader: 150, flash: !touch() }));
+});
+
+/* Вопросы: «головная боль» — разряд из-за виска плачущего человека. */
+/* из тучки (рисунок) в макушку: конец канала уходит за волосы — фигура лежит выше слоя молнии */
+const pain = makeField('pain', {
+  seed: 3,
+  waypoints: [
+    [0.52, 0.26],
+    [0.5, 0.48],
+    [0.44, 0.78],
+  ],
+  branches: 6,
+  sub: 1,
+  twigs: 1,
+  width: 3,
+  widthRef: 160,
+  minW: 0.7,
+  maxW: 1.2,
+  reach: 0.3,
+  spread: 0.9,
+  step: 0.07,
+  rest: 0.9,
+});
+if (pain) {
+  const cloud = $('.doodle--storm');
+  if (reduce()) pain.settle(1);
+  else
+    onceIO($('.questions__visual'), 0.3, () => {
+      cloud?.classList.add('is-drawn');
+      setTimeout(() => pain.strike({ leader: 170, flash: !touch() }), 520);
+    });
+}
+
+/* Услуги: «Разбор полётов» — разряд на листе заканчивается у кончика карандаша. */
+const pencil = makeField('pencil', {
+  seed: 17,
+  waypoints: () => brandWaypoints([0.2, 0.84], [0.638, 0.452]),
+  branches: 6,
+  sub: 1,
+  twigs: 0,
+  width: 2.8,
+  widthRef: 420,
+  reach: 0.22,
+  rest: 0.92,
+});
+if (pencil) {
+  if (reduce()) pencil.settle(1);
+  else onceIO(pencil.host, 0.55, () => pencil.strike({ leader: 360, flash: false }));
+}
+
+/* Кабели: короткая дуга между двумя адаптерами. */
+const cables = makeField('cables', {
+  seed: 41,
+  waypoints: [
+    [0.912, 0.326],
+    [0.918, 0.49],
+  ],
+  branches: 4,
+  sub: 0,
+  twigs: 0,
+  width: 2.4,
+  widthRef: 400,
+  reach: 0.25,
+  spread: 1.3,
+  step: 0.05,
+  rest: 0.9,
+});
+if (cables) {
+  if (reduce()) cables.settle(1);
+  else onceIO(cables.host, 0.6, () => cables.strike({ leader: 90, flash: false }));
+}
+
+/* Рисунки поверх изображений: прорисовываются один раз при появлении. */
+$$('[data-doodle]').forEach((svg) => {
+  if (reduce()) return svg.classList.add('is-drawn');
+  onceIO(svg.parentElement, 0.3, () => svg.classList.add('is-drawn'));
+});
+
+/* Контакты: разряд от красной трубки в свободное поле. */
+const phoneBolt = makeField('phone', {
+  seed: 23,
+  waypoints: () => brandWaypoints([0.12, 0.86], [0.98, 0.04]),
+  branches: 7,
+  sub: 2,
+  twigs: 1,
+  width: 3.2,
+  widthRef: 300,
+  reach: 0.26,
+  rest: 0.9,
+});
+if (phoneBolt) {
+  if (reduce()) phoneBolt.settle(1);
+  else onceIO(phoneBolt.host, 0.45, () => phoneBolt.strike({ leader: 180, flash: !touch() }));
+}
+
+/* Услуги: линия-заряд связывает три уровня; номера «заряжаются», когда фронт до них доходит. */
+const pkgWrap = $('.packages-wrap');
+const spineEl = $('.packages__spine');
+const pkgs = $$('[data-pkg]');
+let spineStops = [];
+let sparkT = 0;
+const measureSpine = () => {
+  if (!pkgWrap) return;
+  const r = pkgWrap.getBoundingClientRect();
+  spineStops = pkgs.map((p) => (p.getBoundingClientRect().top - r.top + 40) / r.height);
+};
+function spineUpdate() {
+  if (!pkgWrap || !spineEl) return;
+  const r = pkgWrap.getBoundingClientRect();
+  if (r.bottom < -200 || r.top > innerHeight + 200) return;
+  const p = reduce() ? 1 : Math.min(1, Math.max(0, (innerHeight * 0.62 - r.top) / r.height));
+  spineEl.style.setProperty('--p', p.toFixed(4));
+  pkgs.forEach((el, i) => el.classList.toggle('is-charged', p >= (spineStops[i] ?? 1)));
+  if (!reduce() && p > 0 && p < 1) {
+    spineEl.style.setProperty('--spark', '1');
+    clearTimeout(sparkT);
+    sparkT = setTimeout(() => spineEl.style.setProperty('--spark', '0'), 420);
+  }
+}
+if (pkgWrap) {
+  measureSpine();
+  new ResizeObserver(() => {
+    measureSpine();
+    spineUpdate();
+  }).observe(pkgWrap);
+  spineUpdate();
+}
+
+/* ---------- слайдер hero ---------- */
+const slider = $('[data-slider]');
+const slides = $$('[data-slide]');
+const counter = $('[data-current]');
+const ticks = $$('.slider-ctrl__ticks i');
+let current = 0;
+function setSlide(i, { strike = true } = {}) {
+  const n = slides.length;
+  i = (i + n) % n;
+  if (i === current) return;
+  const prev = slides[current];
+  prev.classList.remove('is-active', 'is-entering');
+  prev.inert = true;
+  prev.setAttribute('aria-hidden', 'true');
+  const next = slides[i];
+  next.inert = false;
+  next.removeAttribute('aria-hidden');
+  next.classList.add('is-active');
+  if (!reduce()) {
+    next.classList.remove('is-entering');
+    void next.offsetWidth;
+    next.classList.add('is-entering');
+  }
+  current = i;
+  if (counter) counter.textContent = String(i + 1);
+  ticks.forEach((t, k) => t.classList.toggle('is-on', k === i));
+  if (heroBolt && strike) {
+    if (reduce()) {
+      heroBolt.build(heroSeeds[i]);
+      heroBolt.settle(1);
+    } else {
+      const to = heroLinked() ? HERO_BASE + (1 - HERO_BASE) * heroP : 1;
+      heroIntroDone = false;
+      heroBolt
+        .fade(110)
+        .then(() => heroBolt.strike({ from: 0, to, leader: 170, flash: !touch(), seed: heroSeeds[i] }))
+        .then(() => {
+          heroIntroDone = true;
+          heroUpdate();
+        });
+    }
+  }
+}
+if (slider) {
+  slides.forEach((s, k) => {
+    if (k) {
+      s.inert = true;
+      s.setAttribute('aria-hidden', 'true');
+    }
+  });
+  $('[data-prev]')?.addEventListener('click', () => setSlide(current - 1));
+  $('[data-next]')?.addEventListener('click', () => setSlide(current + 1));
+  $('.hero__copy')?.addEventListener('keydown', (e) => {
+    if (e.target.closest('input, textarea')) return;
+    if (e.key === 'ArrowRight') setSlide(current + 1);
+    if (e.key === 'ArrowLeft') setSlide(current - 1);
+  });
+  let sx = null;
+  let sy = null;
+  slider.addEventListener('touchstart', (e) => ((sx = e.touches[0].clientX), (sy = e.touches[0].clientY)), { passive: true });
+  slider.addEventListener(
+    'touchend',
+    (e) => {
+      if (sx == null) return;
+      const dx = e.changedTouches[0].clientX - sx;
+      const dy = e.changedTouches[0].clientY - sy;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.4) setSlide(current + (dx < 0 ? 1 : -1));
+      sx = null;
+    },
+    { passive: true }
+  );
+}
+
+/* ---------- вопросы: аккордеон (можно открыть несколько) ---------- */
+let painSeed = 3;
+$$('[data-faq-item]').forEach((item) => {
+  const btn = item.querySelector('.faq__btn');
+  btn.addEventListener('click', () => {
+    const open = !item.classList.contains('is-open');
+    item.classList.toggle('is-open', open);
+    btn.setAttribute('aria-expanded', String(open));
+    if (open) {
+      playIcon(item.querySelector('.faq__icon'));
+      if (pain && !reduce() && pain.anim == null) pain.strike({ leader: 120, flash: false, seed: (painSeed += 11) });
+    }
+  });
+  btn.addEventListener('pointerenter', () => {
+    if (mqHover.matches) playIcon(item.querySelector('.faq__icon'));
+  });
+});
+
+/* ---------- модальные окна ---------- */
+let opener = null;
+const modalBolts = new WeakMap();
+function openModal(dlg, from) {
+  if (!dlg || dlg.open) return;
+  opener = from || document.activeElement;
+  dlg.showModal();
+  doc.style.overflow = 'hidden';
+  const host = dlg.querySelector('.modal__bolt');
+  if (host && !reduce()) {
+    let f = modalBolts.get(host);
+    if (!f) {
+      f = new LightningField(host, {
+        seed: 9,
+        waypoints: [
+          [0.0, 0.5],
+          [0.35, 0.42],
+          [0.7, 0.58],
+          [1, 0.48],
+        ],
+        branches: 6,
+        sub: 1,
+        twigs: 0,
+        width: 2.2,
+        widthRef: 52,
+        minW: 1,
+        maxW: 1,
+        reach: 0.06,
+        spread: 1.3,
+        step: 0.12,
+        rest: 0,
+        glow: 1,
+      });
+      modalBolts.set(host, f);
+    }
+    f.strike({ leader: 140, flash: false, seed: Math.floor(Math.random() * 999) });
+  }
+  setTimeout(() => dlg.querySelector('input')?.focus(), 30);
+}
+$$('dialog.modal').forEach((dlg) => {
+  dlg.addEventListener('close', () => {
+    doc.style.overflow = '';
+    opener?.focus?.();
+  });
+  dlg.addEventListener('click', (e) => {
+    if (e.target === dlg) dlg.close();
+  });
+  dlg.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => dlg.close()));
+});
+$$('[data-open]').forEach((b) => b.addEventListener('click', () => openModal(document.getElementById(b.dataset.open), b)));
+
+/* ---------- чат: провайдер не выбран — честное состояние ---------- */
+const chat = $('#chat-panel');
+let chatOpener = null;
+function setChat(open, { focusBack = true } = {}) {
+  if (!chat) return;
+  chat.hidden = !open;
+  $$('[data-open-chat]').forEach((b) => b.setAttribute('aria-expanded', String(open)));
+  if (open) {
+    chatOpener = document.activeElement;
+    chat.querySelector('[data-chat-close]')?.focus();
+  } else if (focusBack) chatOpener?.focus?.();
+}
+$$('[data-open-chat]').forEach((b) => b.addEventListener('click', () => setChat(chat.hidden)));
+$('[data-chat-close]')?.addEventListener('click', () => setChat(false));
+
+/* ---------- формы ---------- */
+const reEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const rePhone = /^\+?[\d\s()\-]{7,20}$/;
+const digits = (v) => v.replace(/\D/g, '').length;
+const isPhone = (v) => rePhone.test(v) && digits(v) >= 10 && digits(v) <= 15;
+const MSG = {
+  required: 'Заполните это поле.',
+  name: 'Напишите имя — хотя бы две буквы.',
+  email: 'Проверьте адрес почты: например, name@mail.ru.',
+  phone: 'Проверьте номер: 10–15 цифр, например +7 900 000-00-00.',
+  'phone-or-email': 'Укажите телефон (10–15 цифр) или почту вида name@mail.ru.',
+};
+function validateField(input) {
+  const v = input.value.trim();
+  const rule = input.dataset.validate;
+  let err = '';
+  if (input.required && !v) err = MSG.required;
+  else if (input.name === 'name' && v.length < 2) err = MSG.name;
+  else if (v && rule === 'email' && !reEmail.test(v)) err = MSG.email;
+  else if (v && rule === 'phone' && !isPhone(v)) err = MSG.phone;
+  else if (v && rule === 'phone-or-email' && !(reEmail.test(v) || isPhone(v))) err = MSG['phone-or-email'];
+  const box = document.getElementById(input.getAttribute('aria-describedby'));
+  if (err) input.setAttribute('aria-invalid', 'true');
+  else input.removeAttribute('aria-invalid');
+  if (box) box.textContent = err;
+  return !err;
+}
+const DEMO = {
+  contact: 'Демо-режим: приём заявок ещё не подключён, поэтому заявка не отправлена. Введённые данные остались в форме.',
+  lead: 'Демо-режим: приём заявок ещё не подключён, поэтому заявка не отправлена. Данные остались в форме.',
+  checklist: 'Доставка чек-листа ещё не подключена — письмо не отправлено. Адрес остался в поле.',
+};
+const OK = {
+  contact: 'Заявка отправлена. Ответим по указанному контакту.',
+  lead: 'Заявка отправлена. Ответим по указанному телефону.',
+  checklist: 'Готово: чек-лист отправлен на указанную почту.',
+};
+$$('form[data-form]').forEach((form) => {
+  const kind = form.dataset.form;
+  const status = form.querySelector('.form__status');
+  const submit = form.querySelector('[type="submit"]');
+  const inputs = $$('input[required], input[data-validate]', form);
+  inputs.forEach((i) => {
+    i.addEventListener('blur', () => i.value && validateField(i));
+    i.addEventListener('input', () => i.getAttribute('aria-invalid') && validateField(i));
+  });
+  const setStatus = (text, cls) => {
+    status.className = 'form__status' + (cls ? ' ' + cls : '');
+    status.textContent = text;
+  };
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (submit.getAttribute('aria-busy') === 'true') return;
+    const bad = inputs.filter((i) => !validateField(i));
+    if (bad.length) {
+      setStatus('');
+      bad[0].focus();
+      return;
+    }
+    const endpoint = CFG.endpoints?.[kind];
+    if (!endpoint) {
+      setStatus(DEMO[kind], 'is-demo');
+      return;
+    }
+    submit.setAttribute('aria-busy', 'true');
+    submit.disabled = true;
+    setStatus('Отправляем…');
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setStatus(OK[kind], 'is-ok');
+      form.reset();
+    } catch {
+      setStatus('Не получилось отправить: проблема с соединением или сервером. Данные сохранены — попробуйте ещё раз.', 'is-error');
+    } finally {
+      submit.removeAttribute('aria-busy');
+      submit.disabled = false;
+    }
+  });
+});
+
+/* ---------- скачивания без файла ---------- */
+$$('[data-missing-file]').forEach((b) =>
+  b.addEventListener('click', () => {
+    const box = document.getElementById(b.getAttribute('aria-describedby'));
+    const label = b.querySelector('.btn__label')?.textContent || 'документ';
+    if (box) box.textContent = `Файл «${label}» ещё не загружен на сайт — скачать пока нечего.`;
+  })
+);
+
+/* ---------- копирование контактов ---------- */
+$$('[data-copy]').forEach((b) =>
+  b.addEventListener('click', async () => {
+    const span = b.querySelector('span');
+    try {
+      await navigator.clipboard.writeText(b.dataset.copy);
+      span.textContent = 'Скопировано';
+    } catch {
+      span.textContent = 'Не удалось скопировать';
+    }
+    setTimeout(() => (span.textContent = 'Скопировать'), 2200);
+  })
+);
+
+/* ---------- таблица: подсветка колонки, подсказка о прокрутке ---------- */
+const table = $('[data-table]');
+if (table) {
+  const hint = $('#table-hint');
+  const cells = $$('[data-col]', table);
+  const mark = (col) => cells.forEach((c) => c.classList.toggle('is-col', c.dataset.col === col));
+  table.addEventListener('pointerover', (e) => {
+    const c = e.target.closest('[data-col]');
+    mark(c ? c.dataset.col : null);
+  });
+  table.addEventListener('pointerleave', () => mark(null));
+  const fit = () => hint && (hint.hidden = table.scrollWidth <= table.clientWidth + 1);
+  new ResizeObserver(fit).observe(table);
+}
+
+/* ---------- видео: старт только по действию ---------- */
+const videoBox = $('[data-video]');
+const videoEl = videoBox?.querySelector('video');
+const playBtn = videoBox?.querySelector('[data-video-play]');
+if (videoEl && playBtn) {
+  videoEl.removeAttribute('controls');
+  playBtn.addEventListener('click', () => {
+    videoEl.setAttribute('controls', '');
+    videoBox.classList.add('is-playing');
+    videoEl.play().catch(() => {});
+    videoEl.focus();
+  });
+}
+
+/* ---------- кнопка «Наверх» ---------- */
+const toTop = $('[data-to-top]');
+let toTopShown = false;
+function toTopUpdate() {
+  if (!toTop) return;
+  const show = scrollY > innerHeight * 0.75;
+  if (show === toTopShown) return;
+  toTopShown = show;
+  if (show) {
+    toTop.hidden = false;
+    requestAnimationFrame(() => toTop.classList.add('is-shown'));
+  } else {
+    toTop.classList.remove('is-shown');
+    setTimeout(() => !toTopShown && (toTop.hidden = true), 300);
+  }
+}
+toTop?.addEventListener('click', () => {
+  scrollToEl($('#home'));
+  const title = $('.hero__slide.is-active .hero__title');
+  title?.setAttribute('tabindex', '-1');
+  title?.focus({ preventScroll: true });
+});
+
+/* ---------- старт ---------- */
+header?.classList.toggle('is-scrolled', scrollY > 24);
+toTopUpdate();
+mqReduce.addEventListener?.('change', () => fields.forEach((f) => f.settle(f.reveal || 1)));
