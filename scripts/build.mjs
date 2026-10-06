@@ -57,7 +57,9 @@ const sprite = () => {
   const bolt = read('assets/brand/icon.svg').match(/<path[^>]+>/g).join('').replace(/ class="cls-1"/g, '');
   return (
     `<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg"><defs>${syms}` +
-    `<symbol id="kb-bolt" viewBox="0 0 2000 1278.16">${bolt}</symbol></defs></svg>`
+    `<symbol id="kb-bolt" viewBox="0 0 2000 1278.16">${bolt}</symbol>` +
+    `<filter id="kb-lzblur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="9"/></filter><filter id="kb-outline" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB"><feComponentTransfer in="SourceAlpha" result="a"><feFuncA type="table" tableValues="0 0 1 1"/></feComponentTransfer><feMorphology in="a" operator="dilate" radius="2.5" result="d"/><feGaussianBlur in="d" stdDeviation="0.7" result="ds"/><feFlood flood-color="#F20D0D"/><feComposite in2="ds" operator="in" result="ring"/><feGaussianBlur in="ring" stdDeviation="3.5" result="g1"/><feGaussianBlur in="ring" stdDeviation="11" result="g2"/><feMerge><feMergeNode in="g2"/><feMergeNode in="g1"/><feMergeNode in="ring"/></feMerge></filter>` +
+    `</defs></svg>`
   );
 };
 
@@ -94,7 +96,7 @@ const photo = (id, { cls = '', sizes = '(min-width: 1024px) 40vw, 92vw', alt } =
 };
 
 const btn = (label, { cls = 'btn--primary', attrs = '', ic, tag = 'button', href } = {}) => {
-  const inner = `<span class="btn__label">${esc(label)}</span>${ic ? iconInline(ic, 'btn__icon') : ''}<span class="btn__arc" aria-hidden="true"></span>`;
+  const inner = `<span class="btn__label">${esc(label)}</span>${iconInline(ic || 'arrow-right', 'btn__icon')}<span class="btn__arc" aria-hidden="true"></span>`;
   if (tag === 'a') return `<a class="btn ${cls}" href="${attr(href)}" ${attrs}>${inner}</a>`;
   return `<button class="btn ${cls}" type="button" ${attrs}>${inner}</button>`;
 };
@@ -198,6 +200,25 @@ const shadow = (id, [cx, cy, rx, ry]) => {
   return `<svg class="cut-shadow" viewBox="0 0 ${i.width} ${i.height}" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><defs><radialGradient id="sh-${id}"><stop offset="0" stop-color="#0b0b0b" stop-opacity=".22"/><stop offset=".55" stop-color="#0b0b0b" stop-opacity=".08"/><stop offset="1" stop-color="#0b0b0b" stop-opacity="0"/></radialGradient></defs><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#sh-${id})"/></svg>`;
 };
 
+/* ---------- персонажи: красный контур + молнии из глаз (координаты глаз — в пикселях кадра) ---------- */
+const EYES = {
+  '07-hero-facts-person': [464, 268, 558, 268],
+  '10-services-presenter-person': [548, 272, 628, 272],
+  '11-comparison-presenter-person': [466, 238, 536, 230],
+  '12-contact-phone-person': [380, 256, 465, 212],
+};
+const beams = () =>
+  `<svg class="who__beams" viewBox="0 0 1024 1536" aria-hidden="true" focusable="false">${[0, 1]
+    .map(() => '<g class="beam"><polyline class="beam__glow" pathLength="1"/><polyline class="beam__body" pathLength="1"/><polyline class="beam__core" pathLength="1"/></g>')
+    .join('')}</svg>`;
+const glowImg = (id) => {
+  const i = IMG[id];
+  return `<img class="who__glow" src="assets/img/${id}-768.webp" width="${i.width}" height="${i.height}" alt="" aria-hidden="true" loading="lazy" decoding="async">`;
+};
+/* who(key, id, opts): обёртка 2:3 вокруг вырезанного персонажа */
+const who = (key, id, { cls = '', imgCls = '', eager = false, sizes, alt, extra = '', slide = '' } = {}) =>
+  `<div class="who ${cls}" data-who="${key}" data-eyes="${EYES[id].join(',')}"${slide ? ` data-slide-from="${slide}"` : ''}>${glowImg(id)}${person(id, { cls: `who__img ${imgCls}`, eager, sizes, alt })}${extra}${beams()}</div>`;
+
 /* ---------- данные ---------- */
 const H = C.hero;
 const A = C.about;
@@ -260,6 +281,7 @@ const html = `<!doctype html>
 <link rel="preload" as="image" href="assets/img/07-hero-facts-person-768.webp" imagesrcset="assets/img/07-hero-facts-person-768.webp 768w, assets/img/07-hero-facts-person.webp 1024w" imagesizes="(min-width: 1024px) 34vw, 70vw" fetchpriority="high">
 <link rel="stylesheet" href="assets/css/main.css?v=${VERSION}">
 <script>document.documentElement.className='js';</script>
+<script type="application/json" id="kb-talk">${JSON.stringify([T.chat_label, O.chat.title]).replace(/</g, '\\u003c')}</script>
 <script type="application/json" id="kb-config">${JSON.stringify({
   phone: CFG.phone,
   endpoints: CFG.endpoints,
@@ -313,8 +335,8 @@ ${sprite()}
             const title = esc(s.title).replace(/ ([–-]) /g, '&nbsp;$1 ').replace('. ', '.<br> ');
             const t =
               i === 0
-                ? `<h1 class="display hero__title" id="hero-title" tabindex="-1">${title}</h1>`
-                : `<h2 class="display hero__title" tabindex="-1">${title}</h2>`;
+                ? `<h1 class="display hero__title" id="hero-title" tabindex="-1"><span class="roll">${title}</span></h1>`
+                : `<h2 class="display hero__title" tabindex="-1"><span class="roll">${title}</span></h2>`;
             // у смысла «Эмоции - людям…» — главный lead; короткий дубль остаётся только в данных
             const lead = src === 0 ? H.lead : s.text;
             return `<div class="hero__slide${i === 0 ? ' is-active' : ''}" id="${id}" role="group" aria-roledescription="слайд" aria-label="${i + 1} из ${H.slides.length}" data-slide="${i}">
@@ -324,7 +346,7 @@ ${sprite()}
           })
           .join('\n        ')}
       </div>
-      <ul class="hero__topics" aria-label="Направления">${H.topics.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+      <p class="hero__hint" data-hint><svg class="icon" viewBox="0 0 2000 1278.16" aria-hidden="true" focusable="false"><use href="#kb-bolt"/></svg><span class="hint--mouse">Кликните по пустому месту — ударит молния</span><span class="hint--touch">Коснитесь пустого места — ударит молния</span></p>
       <div class="hero__actions">
         ${btn(H.cta, { tag: 'a', href: '#contact', attrs: 'data-to-form' })}
         <div class="slider-ctrl" data-slider-ctrl>
@@ -337,21 +359,29 @@ ${sprite()}
     </div>
     <div class="hero__visual">
       <div class="bolt-field hero__bolt" data-bolt="hero" aria-hidden="true"></div>
-      <div class="placard" data-placard>
-        ${person('07-hero-facts-person', { cls: 'placard__img', eager: true, alt: 'Постановочный персонаж держит табличку' })}
-        <p class="placard__text"><span>${esc(H.system_line)}</span></p>
-        ${doodle('placard')}
-      </div>
+      ${who('hero', '07-hero-facts-person', {
+        cls: 'placard',
+        imgCls: 'placard__img',
+        eager: true,
+        alt: 'Постановочный персонаж держит табличку',
+        extra: `<p class="placard__text"><span>${esc(H.system_line)}</span></p>${doodle('placard')}`,
+      }).replace('data-who="hero"', 'data-who="hero" data-placard')}
     </div>
   </div>
 </section>
+
+<div class="mq" data-mq aria-label="Направления: ${attr(H.topics.join(', '))}" role="img">
+  <div class="mq__track" data-mq-track aria-hidden="true">${[...H.topics, ...H.topics, ...H.topics, ...H.topics, ...H.topics, ...H.topics]
+    .map((w, i) => `<span class="mq__item${i % 2 ? ' mq__item--outline' : ''}"><span>${esc(w)}</span><svg class="mq__bolt" viewBox="0 0 2000 1278.16" focusable="false"><use href="#kb-bolt"/></svg></span>`)
+    .join('')}</div>
+</div>
 
 <section class="about section" id="about" aria-labelledby="about-title">
   <div class="wrap">
     <h2 class="display section__title about__title" id="about-title" tabindex="-1">${esc(A.title)}</h2>
     <div class="about__grid">
       <div class="about__text">
-        ${A.paragraphs.map((p, i) => `<p class="${i === 0 ? 'about__lead' : 'about__p'}">${esc(p)}</p>`).join('\n        ')}
+        ${A.paragraphs.map((p, i) => `<p class="${i === 0 ? 'about__lead' : i === A.paragraphs.length - 1 ? 'about__punch' : 'about__p'}">${esc(p)}</p>`).join('\n        ')}
         <div class="about__cta">${btn(A.cta, { attrs: 'aria-haspopup="dialog" data-open="lead-dialog"' })}</div>
       </div>
       <div class="about__media">
@@ -372,39 +402,29 @@ ${sprite()}
   </div>
 </section>
 
-<div class="discharge" aria-hidden="true"><div class="wrap"><div class="bolt-field discharge__field" data-bolt="band-1"></div></div></div>
+<div class="discharge" aria-hidden="true" data-cross></div>
 
 <section class="questions section" id="questions" aria-labelledby="questions-title">
   <div class="wrap">
     <h2 class="display section__title" id="questions-title" tabindex="-1">${esc(Q.title)}</h2>
-    <div class="questions__grid">
-      <div class="questions__visual">
-        <div class="bolt-field questions__bolt" data-bolt="pain" aria-hidden="true"></div>
-        ${person('09-questions-crying-person', { cls: 'questions__person', sizes: '(min-width: 1024px) 28vw, 60vw' })}
-        ${doodle('storm')}
-      </div>
-      <div class="questions__list">
-        <ul class="faq" data-faq>
-          ${Q.items
-            .map(
-              (q, i) => `<li class="faq__item${i === 0 ? ' is-open' : ''}" data-faq-item>
-            <h3 class="faq__q">
-              <button class="faq__btn" type="button" id="faq-q-${i + 1}" aria-expanded="${i === 0}" aria-controls="faq-a-${i + 1}" data-icon-anim>
-                ${iconInline(faqIcons[i], 'faq__icon')}
-                <span class="faq__text">${esc(q.question)}</span>
-                <span class="faq__toggle" aria-hidden="true">${iconInline('plus')}</span>
-              </button>
-            </h3>
-            <div class="faq__a" id="faq-a-${i + 1}" role="region" aria-labelledby="faq-q-${i + 1}"><div class="faq__a-inner"><p>${esc(q.answer)}</p></div></div>
-          </li>`
-            )
-            .join('\n          ')}
-        </ul>
-        <div class="questions__cta">${btn(Q.cta, { attrs: 'aria-haspopup="dialog" data-open="checklist-dialog"', ic: 'download' })}</div>
-      </div>
-    </div>
+    <ul class="pros" data-pros>
+      ${Q.items
+        .map(
+          (q, i) => `<li class="pro" data-pro style="--i:${i}">
+        <div class="pro__top"><span class="pro__num" aria-hidden="true">0${i + 1}</span>${iconInline(faqIcons[i], 'pro__icon')}</div>
+        <h3 class="pro__q">${esc(q.question)}</h3>
+        <p class="pro__a">${esc(q.answer)}</p>
+        <span class="pro__charge" aria-hidden="true"></span><span class="btn__arc pro__arc" aria-hidden="true"></span>
+      </li>`
+        )
+        .join('\n      ')}
+    </ul>
+    <div class="pros__nav" aria-hidden="true"><span data-pros-current>1</span>&nbsp;/&nbsp;${Q.items.length}</div>
+    <div class="questions__cta">${btn(Q.cta, { attrs: 'aria-haspopup="dialog" data-open="checklist-dialog"', ic: 'download' })}</div>
   </div>
 </section>
+
+<div class="discharge" aria-hidden="true" data-cross></div>
 
 <section class="services section" id="services" aria-labelledby="services-title">
   <div class="wrap">
@@ -413,16 +433,15 @@ ${sprite()}
         <h2 class="display section__title services__title" id="services-title" tabindex="-1">${esc(S.title)}</h2>
         <p class="services__lead">${esc(S.intro)}</p>
       </div>
-      <div class="services__presenter">${person('10-services-presenter-person', { cls: 'services__person', sizes: '(min-width: 1024px) 26vw, 60vw' })}${doodle('present')}</div>
+      <div class="services__presenter">${who('services', '10-services-presenter-person', { imgCls: 'services__person', sizes: '(min-width: 1024px) 26vw, 60vw', extra: doodle('present'), slide: 'right' })}</div>
     </div>
     <div class="packages-wrap">
-    <div class="packages__spine" aria-hidden="true"><i class="packages__charge"></i><i class="packages__spark"></i></div>
     <ol class="packages" data-packages>
       ${S.packages
         .map((p, i) => {
           const [kicker, name] = splitTitle(p.title);
           return `<li class="pkg" id="pkg-${p.id}" data-pkg>
-        <div class="pkg__num" aria-hidden="true"><span>${p.number}</span></div>
+        <div class="pkg__num" aria-hidden="true"><span data-tap="pkg-${p.id}">${p.number}</span></div>
         <div class="pkg__head">
           <h3 class="pkg__title"><span class="pkg__kicker">${esc(kicker)}</span> <span class="pkg__name">${esc(name)}</span></h3>
           <dl class="pkg__meta">
@@ -439,7 +458,6 @@ ${sprite()}
         <div class="pkg__body">
           <p class="pkg__text">${esc(p.text)}</p>
           <div class="pkg__foot">
-            <p class="pkg__price"><span class="pkg__price-label">${esc(T.rows[T.rows.length - 1][0])}</span> <span class="pkg__price-value">${esc(priceByIndex[i] || rub(p.price_rub))}</span></p>
             <div class="pkg__action">${download(p.download_label, CFG.downloads[p.id], `dl-${p.id}`)}</div>
           </div>
         </div>
@@ -451,13 +469,29 @@ ${sprite()}
   </div>
 </section>
 
-<div class="discharge" aria-hidden="true"><div class="wrap"><div class="bolt-field discharge__field" data-bolt="band-2"></div></div></div>
+<div class="discharge" aria-hidden="true" data-cross></div>
 
 <section class="comparison section" id="comparison" aria-labelledby="comparison-title">
   <div class="wrap">
     <div class="comparison__intro">
-      <div class="comparison__presenter">${person('11-comparison-presenter-person', { cls: 'comparison__person', sizes: '(min-width: 1024px) 20vw, 40vw' })}${doodle('point')}</div>
+      <div class="comparison__presenter">${who('comparison', '11-comparison-presenter-person', { imgCls: 'comparison__person', sizes: '(min-width: 1024px) 20vw, 40vw', extra: doodle('point'), slide: 'left' })}</div>
       <h2 class="display section__title comparison__title" id="comparison-title">${esc(T.title)}</h2>
+    </div>
+    <div class="cmp" data-cmp>
+      <div class="cmp__tabs" role="tablist" aria-label="Пакеты">
+        ${T.columns
+          .slice(1)
+          .map((c, i) => `<button class="cmp__tab" type="button" role="tab" id="cmp-tab-${i}" aria-controls="cmp-panel-${i}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${esc(c)}</button>`)
+          .join('')}
+      </div>
+      ${T.columns
+        .slice(1)
+        .map(
+          (c, i) => `<div class="cmp__panel" role="tabpanel" id="cmp-panel-${i}" aria-labelledby="cmp-tab-${i}"${i ? ' hidden' : ''}>
+        <dl class="cmp__list">${T.rows.map((r) => `<div class="cmp__row${r[0] === 'Цена пакета' ? ' is-price' : ''}"><dt>${esc(r[0])}</dt><dd>${esc(r[i + 1])}</dd></div>`).join('')}</dl>
+      </div>`
+        )
+        .join('\n      ')}
     </div>
     <p class="table-hint" id="table-hint">${icon('arrow-right')}<span>Таблица прокручивается по горизонтали</span></p>
     <div class="table-scroll" tabindex="0" role="region" aria-labelledby="comparison-title" aria-describedby="table-hint" data-table>
@@ -495,8 +529,7 @@ ${sprite()}
         <div class="contact__media">
           <div class="contact__visual">
             <div class="bolt-field contact__bolt" data-bolt="phone" aria-hidden="true"></div>
-            ${person('12-contact-phone-person', { cls: 'contact__person', sizes: '(min-width: 1024px) 20vw, 50vw' })}
-            ${doodle('ring')}
+            ${who('contact', '12-contact-phone-person', { imgCls: 'contact__person', sizes: '(min-width: 1024px) 20vw, 50vw', extra: doodle('ring'), slide: 'left' })}
           </div>
           <div class="contact__lists">
             <div class="contact__group">
@@ -549,6 +582,12 @@ ${sprite()}
     </div>
   </div>
 </footer>
+
+<button class="talk" type="button" aria-haspopup="dialog" aria-controls="chat-panel" aria-label="${attr(T.chat_label)}: ${attr(O.chat.title)}" data-open-chat data-talk>
+  <span class="talk__bubble" aria-hidden="true"><span class="talk__text" data-talk-text>${esc(T.chat_label)}</span></span>
+  <svg class="talk__waves" viewBox="0 0 14 22" aria-hidden="true" focusable="false"><path d="M2 6Q6 11 2 16"/><path d="M7 2Q14 11 7 20"/></svg>
+  <span class="talk__face" aria-hidden="true"><img src="assets/img/avatar-contact.webp" width="176" height="176" alt=""></span>
+</button>
 
 <button class="to-top" type="button" aria-label="Наверх" data-to-top hidden>${icon('back-to-top')}</button>
 

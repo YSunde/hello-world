@@ -61,11 +61,10 @@ for (let i = 0; i < total; i++) {
   await stage.screenshot({ path: join(framesDir, `f${String(i).padStart(5, '0')}.png`) });
   if (i % 60 === 0) console.log(`кадр ${i}/${total} · ${((Date.now() - t0) / 1000).toFixed(0)} c`);
 }
-// постер: сцена «человек с табличкой» без подписи под заголовком (под кнопку «Смотреть»)
+// постер: финальная сцена (знак КБ13, паутина разряда, направления) — не повторяет кадры страницы
 const posterPng = join(framesDir, 'poster.png');
 await page.evaluate(() => {
-  for (let t = 7.3; t <= 9.8; t += 1 / 30) window.renderFrame(t);
-  document.getElementById('pC').style.opacity = '0';
+  for (let t = 20.2; t <= 23.2; t += 1 / 30) window.renderFrame(t);
 });
 await stage.screenshot({ path: posterPng });
 await browser.close();

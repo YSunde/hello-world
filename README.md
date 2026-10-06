@@ -1,5 +1,7 @@
 # КБ-13 — сайт креативного бюро
 
+> **Основной сайт (v3 «Молния-лента»)** — ветка `claude/red-lightning-effects-design-w7gxvc`, корень https://ysunde.github.io/hello-world/. Альтернатива v2 «Гроза на бумаге» — https://ysunde.github.io/hello-world/v2/ (ветка `claude/kb13-v2-storm`).
+
 Одностраничный сайт: белое поле, крупный голос, красный разряд. Статика без сборщика и зависимостей — готова для GitHub Pages (`index.html` в корне).
 
 - Дизайн-система и правила эффектов — [DESIGN.md](DESIGN.md)
@@ -27,7 +29,9 @@ content.ru.json          весь маркетинговый текст (из п
 site.config.json         контакты, документы, видео, адреса приёма заявок, чат
 assets/
   css/main.css           токены, сетка, все блоки, адаптив 320–1440+
-  js/lightning.js        движок реалистичной молнии (canvas)
+  js/lightning.js        генерация геометрии разряда
+  js/storm.js            удары, искры, подпалины, вспышка
+  js/ribbon.js           молния-лента через всю страницу
   js/main.js             поведение: меню, слайдер, аккордеон, окна, формы, эффекты
   img/                   9 изображений WebP с прозрачностью + IMAGE_MAP.json
   icons/                 17 SVG-иконок, icons.json (источник), sprite.svg

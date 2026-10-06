@@ -108,23 +108,6 @@
       }
     },
     {
-      "id": "09-questions-crying-person",
-      "title": "Боли и возражения",
-      "placement": "Вопросы",
-      "alt": "Постановочный плачущий персонаж держит руку у виска.",
-      "object_position": "50% 100%",
-      "crop_notes": "Contain. Сохранить лицо и видимые слёзы.",
-      "width": 1024,
-      "height": 1536,
-      "aspect_ratio": "1024:1536",
-      "alpha": true,
-      "original": "images/original/09-questions-crying-person.png",
-      "web": "images/web/09-questions-crying-person.webp",
-      "web_768": "images/web/09-questions-crying-person-768.webp",
-      "generated": true,
-      "documentary": false
-    },
-    {
       "id": "10-services-presenter-person",
       "title": "Девушка представляет тарифы",
       "placement": "Услуги: вводный блок",
@@ -174,7 +157,20 @@
       "web_768": "images/web/12-contact-phone-person-768.webp",
       "generated": true,
       "documentary": false
+    },
+    {
+      "id": "avatar-contact",
+      "title": "Аватар чата",
+      "placement": "Плавающая кнопка «Телеграфировать»",
+      "alt": "",
+      "width": 176,
+      "height": 176,
+      "alpha": false,
+      "web": "images/web/avatar-contact.webp",
+      "generated": true,
+      "documentary": false,
+      "source": "кроп 12-contact-phone-person"
     }
   ],
-  "note": "На сайте используются 9 изображений. 01-hero-paper, 06-contact-phone и 08-about-friendly-person из комплекта не используются (по решению заказчика в «Давай дружить» нет человека; предметные 01/06 дублируют сюжеты персонажей)."
+  "note": "v3: 8 изображений + аватар чата. Плачущий персонаж (09) убран по просьбе заказчика."
 }

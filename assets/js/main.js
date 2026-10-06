@@ -3,6 +3,8 @@
  * Без зависимостей. Всё содержимое видно и без JS; скрипт только добавляет взаимодействие и движение.
  */
 import { LightningField, brandWaypoints, arcPath } from './lightning.js';
+import { Storm } from './storm.js';
+import { Ribbon } from './ribbon.js';
 
 const doc = document.documentElement;
 const $ = (s, r = document) => r.querySelector(s);
@@ -44,11 +46,11 @@ $$('.faq__icon, .btn__icon').forEach((svg) => {
 
 /* ---------- кнопки: разряд вдоль нижней кромки + иконка ---------- */
 let arcSeed = 7;
-function buttonArc(btn) {
+function buttonArc(btn, rough = 0.16) {
   const host = btn.querySelector('.btn__arc');
   if (!host || reduce()) return;
   const w = btn.offsetWidth + 4;
-  const d = arcPath(0, 7, w, 7, { seed: arcSeed++, rough: 0.16, minSeg: 7 });
+  const d = arcPath(0, 7, w, 7, { seed: arcSeed++, rough, minSeg: 7 });
   host.innerHTML = `<svg viewBox="0 0 ${w} 14" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="arc-glow" d="${d}" pathLength="1"/><path class="arc-body" d="${d}" pathLength="1"/><path class="arc-core" d="${d}" pathLength="1"/></svg>`;
   host.classList.remove('is-on');
   void host.offsetWidth;
@@ -219,9 +221,11 @@ const heroSeeds = [13, 29, 47];
 const heroBolt = makeField('hero', {
   seed: heroSeeds[0],
   waypoints: () => brandWaypoints([0.03, 0.985], [0.985, 0.02]),
-  branches: 11,
-  sub: 2,
-  twigs: 1,
+  branches: 4,
+  sub: 1,
+  twigs: 0,
+  step: 0.06,
+  jag: 0.6,
   width: 5.4,
   widthRef: 860,
   reach: 0.26,
@@ -242,6 +246,12 @@ function heroUpdate() {
   heroP = p;
   if (heroBolt && heroIntroDone && heroLinked()) heroBolt.setReveal(HERO_BASE + (1 - HERO_BASE) * p);
   if (placard) placard.style.transform = heroLinked() ? `translate3d(0, ${(-16 * p).toFixed(2)}px, 0)` : '';
+  const copy = $('.hero__copy');
+  if (copy && !reduce()) {
+    const q = Math.min(1, scrollY / (innerHeight * 0.85));
+    copy.style.transform = `translate3d(0, ${(scrollY * 0.14).toFixed(1)}px, 0)`;
+    copy.style.opacity = (1 - q * 0.9).toFixed(3);
+  }
 }
 let heroIntroDone = false;
 if (heroBolt) {
@@ -359,8 +369,8 @@ boltScrub(pain, painVisual, { start: 1.05, end: 0.35, from: 0.5, to: 1 });
 const pencil = makeField('pencil', {
   seed: 17,
   waypoints: () => brandWaypoints([0.2, 0.84], [0.638, 0.452]),
-  branches: 6,
-  sub: 1,
+  branches: 3,
+  sub: 0,
   twigs: 0,
   width: 2.8,
   widthRef: 420,
@@ -395,9 +405,11 @@ $$('[data-doodle]:not(.doodle--storm)').forEach((svg) => doodleScrub(svg, svg.pa
 const phoneBolt = makeField('phone', {
   seed: 23,
   waypoints: () => brandWaypoints([0.12, 0.86], [0.98, 0.04]),
-  branches: 7,
-  sub: 2,
-  twigs: 1,
+  branches: 3,
+  sub: 1,
+  twigs: 0,
+  step: 0.08,
+  jag: 0.6,
   width: 3.2,
   widthRef: 300,
   reach: 0.26,
@@ -460,6 +472,14 @@ function setSlide(i, { strike = true } = {}) {
     next.classList.remove('is-entering');
     void next.offsetWidth;
     next.classList.add('is-entering');
+    const dir = i > current || (current === n - 1 && i === 0) ? 1 : -1;
+    const E = 'cubic-bezier(.7,0,.2,1)';
+    prev.querySelector('.roll')?.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${-105 * dir}%)` }], { duration: 420, easing: E });
+    next.querySelector('.roll')?.animate(
+      [{ transform: `translateY(${105 * dir}%)` }, { transform: `translateY(${-6 * dir}%)`, offset: 0.78 }, { transform: 'translateY(0)' }],
+      { duration: 640, easing: E }
+    );
+    setTimeout(() => fireBeams($('[data-who="hero"]'), next.querySelector('.roll')), 480);
   }
   current = i;
   if (counter) counter.textContent = String(i + 1);
@@ -753,6 +773,293 @@ toTop?.addEventListener('click', () => {
   const title = $('.hero__slide.is-active .hero__title');
   title?.setAttribute('tabindex', '-1');
   title?.focus({ preventScroll: true });
+});
+
+/* =========================================================
+   v3: гроза, молния-лента, молнии из глаз, лента по скорости, появления, «говорящий» чат
+   ========================================================= */
+const storm = new Storm();
+storm.enabled = !reduce();
+const pageXY = (r, fx = 0.5, fy = 0.5) => ({ x: r.left + scrollX + r.width * fx, y: r.top + scrollY + r.height * fy });
+
+/* молнии из глаз персонажа в заголовок: зубчатые лучи, заголовок вспыхивает, на цели — искры */
+function fireBeams(whoEl, target, { delay = 0 } = {}) {
+  if (!whoEl || !target || reduce()) return;
+  const svg = whoEl.querySelector('.who__beams');
+  const eyes = (whoEl.dataset.eyes || '').split(',').map(Number);
+  if (!svg || eyes.length < 4) return;
+  setTimeout(() => {
+    const rc = svg.getBoundingClientRect();
+    const tr = target.getBoundingClientRect();
+    if (!rc.width || !tr.width) return;
+    const sc = 1024 / rc.width;
+    [...svg.querySelectorAll('.beam')].forEach((g, e) => {
+      const ex = eyes[e * 2];
+      const ey = eyes[e * 2 + 1];
+      const tx = (tr.left + tr.width * (e ? 0.62 : 0.38) - rc.left) * sc;
+      const ty = (tr.top + tr.height * 0.5 - rc.top) * sc;
+      const dx = tx - ex;
+      const dy = ty - ey;
+      const L = Math.hypot(dx, dy) || 1;
+      const nx = -dy / L;
+      const ny = dx / L;
+      const pts = [];
+      const n = 8;
+      for (let k = 0; k <= n; k++) {
+        const t = k / n;
+        const off = k === 0 || k === n ? 0 : (Math.random() - 0.5) * Math.min(90, L * 0.05);
+        pts.push(`${(ex + dx * t + nx * off).toFixed(0)},${(ey + dy * t + ny * off).toFixed(0)}`);
+      }
+      g.querySelectorAll('polyline').forEach((pl) => {
+        pl.setAttribute('points', pts.join(' '));
+        pl.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0, offset: 0.3 }, { strokeDashoffset: 0, offset: 0.72 }, { strokeDashoffset: -1 }], {
+          duration: 1400,
+          delay: e * 60,
+          easing: 'cubic-bezier(.3,.7,.2,1)',
+        });
+      });
+    });
+    target.animate(
+      [
+        { textShadow: '0 0 0 rgba(242,13,13,0)' },
+        { textShadow: '0 0 18px rgba(242,13,13,.9), 0 0 56px rgba(242,13,13,.45)', offset: 0.35 },
+        { textShadow: '0 0 10px rgba(242,13,13,.4)', offset: 0.7 },
+        { textShadow: '0 0 0 rgba(242,13,13,0)' },
+      ],
+      { duration: 1800, delay: 320, easing: 'ease-out' }
+    );
+    setTimeout(() => {
+      const r = target.getBoundingClientRect();
+      [0.38, 0.62].forEach((f) => {
+        const p = pageXY(r, f, 0.5);
+        storm.sparks(p.x, p.y, 12);
+      });
+    }, 430);
+  }, delay);
+}
+
+/* въезд персонажей и вспышка заголовков — по кончику ленты */
+const whoTarget = { services: '#services-title', comparison: '#comparison-title', contact: '#contact-title' };
+const heroWho = $('[data-who="hero"]');
+heroWho?.classList.add('is-on');
+if (reduce()) $$('[data-who]').forEach((w) => w.classList.add('is-on'));
+const zapTitle = (el) => {
+  if (!el || reduce()) return;
+  el.animate(
+    [{ color: 'var(--ink)' }, { color: 'var(--red)', textShadow: '0 0 14px rgba(242,13,13,.55)', offset: 0.12 }, { color: 'var(--ink)', offset: 0.26 }, { color: 'var(--red)', offset: 0.4 }, { color: 'var(--ink)' }],
+    { duration: 520, easing: 'steps(1, end)' }
+  );
+};
+const ribbon = new Ribbon({
+  storm,
+  reduced: reduce(),
+  onTrigger(key, on, t) {
+    if (key.startsWith('who:')) {
+      const w = t.el;
+      w.classList.toggle('is-on', on);
+      if (on) fireBeams(w, $(whoTarget[key.slice(4)]), { delay: 950 });
+    } else if (key.startsWith('pkg-')) {
+      document.getElementById(key)?.classList.toggle('is-charged', on);
+    } else if (key.startsWith('pro:')) {
+      t.el.classList.toggle('is-on', on);
+      if (on) playIcon(t.el.querySelector('.pro__icon'));
+    } else if (key.startsWith('h:') && on) {
+      zapTitle(t.el);
+      const r = t.el.getBoundingClientRect();
+      storm.sparks(r.left + scrollX, r.top + scrollY + r.height * 0.5, 8, Math.PI);
+    }
+  },
+});
+['services', 'comparison', 'contact'].forEach((k) => ribbon.watch(`who:${k}`, $(`[data-who="${k}"]`)));
+$$('[data-tap]').forEach((el) => ribbon.tap(el.dataset.tap, el));
+$$('[data-pro]').forEach((el, i) => ribbon.watch(`pro:${i}`, el));
+$$('.section__title').forEach((el) => ribbon.watch(`h:${el.id}`, el));
+const measureAll = () => ribbon.measure();
+(document.fonts?.ready || Promise.resolve()).then(() => {
+  measureAll();
+  setTimeout(measureAll, 600);
+  // герой: молния из глаз в заголовок после первого удара
+  setTimeout(() => fireBeams(heroWho, $('.hero__slide.is-active .roll')), 1700);
+});
+addEventListener('load', measureAll);
+addEventListener('scroll', () => ribbon.kick(), { passive: true });
+
+/* удар по клику/тапу на пустом месте */
+const hint = $('[data-hint]');
+document.addEventListener('click', (e) => {
+  if (!storm.enabled || e.button !== 0) return;
+  if (e.target.closest('a, button, input, textarea, select, label, video, dialog, .chat, .phone-panel, .mobile-menu, .table-scroll, .pros, summary')) return;
+  if (String(getSelection?.() || '').length) return;
+  const bx = e.clientX + scrollX;
+  const by = e.clientY + scrollY;
+  storm.strike({ ax: bx + (Math.random() - 0.5) * 400, ay: scrollY - 12, bx, by, width: innerWidth < 700 ? 3.6 : 4.8, layer: 'front', flash: 0.22, sparks: 34 });
+  hint?.classList.add('is-done');
+});
+
+/* бегущая лента: скорость и направление следуют за прокруткой, наклон — от скорости */
+const mq = $('[data-mq]');
+const mqTrack = $('[data-mq-track]');
+if (mq && mqTrack) {
+  let vis = false;
+  let x = 0;
+  let dir = 1;
+  let vel = 0;
+  let skew = 0;
+  let lastY = scrollY;
+  let last = performance.now();
+  let raf = 0;
+  const loop = (now) => {
+    raf = 0;
+    const dt = Math.min(64, Math.max(1, now - last)) / 1000;
+    last = now;
+    const v = (scrollY - lastY) / dt;
+    lastY = scrollY;
+    vel += (v - vel) * 0.2;
+    if (Math.abs(v) > 20) dir = v > 0 ? 1 : -1;
+    const third = mqTrack.scrollWidth / 3 || 1;
+    const sp = reduce() ? 0 : 60 + Math.min(900, Math.abs(vel) * 0.5);
+    x = (((x + dir * sp * dt) % third) + third) % third;
+    const sk = reduce() ? 0 : Math.max(-10, Math.min(10, -vel * 0.006));
+    skew += (sk - skew) * 0.15;
+    mqTrack.style.transform = `translate3d(${(-x).toFixed(1)}px,0,0) skewX(${skew.toFixed(2)}deg)`;
+    mq.classList.toggle('is-fast', Math.abs(vel) > 1200);
+    if (vis && !document.hidden && !reduce()) raf = requestAnimationFrame(loop);
+  };
+  new IntersectionObserver((es) => {
+    vis = es[0].isIntersecting;
+    if (vis && !raf) {
+      last = performance.now();
+      lastY = scrollY;
+      raf = requestAnimationFrame(loop);
+    }
+  }).observe(mq);
+  document.addEventListener('visibilitychange', () => vis && !raf && !document.hidden && (raf = requestAnimationFrame(loop)));
+}
+
+/* появления: заголовки вырастают из маски, остальное поднимается; по очереди */
+if (!reduce() && 'animate' in Element.prototype) {
+  const items = [];
+  const add = (el, kind) => {
+    if (!el || el.__m) return;
+    el.__m = kind;
+    el.style.opacity = '0';
+    items.push(el);
+  };
+  $$('.section__title, .form__title, .about__punch').forEach((el) => add(el, 'mask'));
+  $$(
+    '.about__lead, .about__p, .about__cta, .about__media, .services__lead, .pkg__head, .pkg__photo, .pkg__body, .questions__cta, .comparison__actions, .table-scroll, .contact__group, .contact-form .field, .contact-form .form__submit, .site-footer__grid > *, .pro'
+  ).forEach((el) => add(el, 'up'));
+  const E = 'cubic-bezier(.16,1,.3,1)';
+  const play = (el, delay) => {
+    el.style.opacity = '';
+    const kf =
+      el.__m === 'mask'
+        ? [
+            { transform: 'translateY(105%)', clipPath: 'inset(0 0 105% 0)' },
+            { transform: 'translateY(0)', clipPath: 'inset(-20% -5% -20% -5%)' },
+          ]
+        : [
+            { opacity: 0, transform: 'translate3d(0,40px,0)' },
+            { opacity: 1, transform: 'translate3d(0,0,0)' },
+          ];
+    el.animate(kf, { duration: el.__m === 'mask' ? 1150 : 950, delay, easing: E, fill: 'backwards' });
+  };
+  const io = new IntersectionObserver(
+    (es) => {
+      const vis = es.filter((e) => e.isIntersecting).map((e) => e.target);
+      vis.sort((a, b) => (a.compareDocumentPosition(b) & 4 ? -1 : 1));
+      vis.forEach((el, i) => {
+        io.unobserve(el);
+        play(el, i * 90);
+      });
+    },
+    { rootMargin: '0px 0px -10% 0px', threshold: 0.01 }
+  );
+  items.forEach((el) => io.observe(el));
+}
+
+/* «говорящая» кнопка чата: появляется, время от времени «говорит» */
+const talk = $('[data-talk]');
+if (talk) {
+  const phrases = JSON.parse($('#kb-talk')?.textContent || '[]');
+  const bubble = talk.querySelector('.talk__bubble');
+  const text = talk.querySelector('[data-talk-text]');
+  const face = talk.querySelector('.talk__face');
+  const waves = talk.querySelector('.talk__waves');
+  let n = 0;
+  let hover = false;
+  const foot = $('.site-footer');
+  if (foot) new IntersectionObserver((es) => talk.classList.toggle('is-quiet', es[0].isIntersecting), { threshold: 0.05 }).observe(foot);
+  talk.addEventListener('pointerenter', () => (hover = true));
+  talk.addEventListener('pointerleave', () => (hover = false));
+  if (!reduce() && face.animate) {
+    const S = 'cubic-bezier(.34,1.56,.64,1)';
+    face.animate([{ transform: 'translateY(18px) scale(.5)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 720, delay: 900, easing: S, fill: 'backwards' });
+    bubble.animate([{ transform: 'translateX(24px) scale(.2)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 640, delay: 1400, easing: S, fill: 'backwards' });
+    setInterval(() => {
+      if (document.hidden || hover || phrases.length < 2) return;
+      text.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-8px)' }], { duration: 180, easing: 'ease-in' });
+      setTimeout(() => {
+        n = (n + 1) % phrases.length;
+        text.textContent = phrases[n];
+        talk.classList.add('is-saying');
+        clearTimeout(talk._q);
+        talk._q = setTimeout(() => talk.classList.remove('is-saying'), 2600);
+        text.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.2,.9,.2,1)' });
+        bubble.animate([{ transform: 'none' }, { transform: 'scale(1.08) rotate(-2deg)', offset: 0.35 }, { transform: 'scale(.98)', offset: 0.7 }, { transform: 'none' }], { duration: 560, easing: 'ease-out' });
+        face.animate([{ transform: 'none' }, { transform: 'rotate(-7deg) translateY(-2px)', offset: 0.25 }, { transform: 'rotate(4deg)', offset: 0.5 }, { transform: 'rotate(-3deg)', offset: 0.75 }, { transform: 'none' }], { duration: 900, easing: 'ease-in-out' });
+        waves.animate([{ opacity: 0, transform: 'translateX(4px) scale(.6)' }, { opacity: 1, transform: 'none', offset: 0.3 }, { opacity: 1, offset: 0.7 }, { opacity: 0, transform: 'translateX(-2px)' }], { duration: 1100, easing: 'ease-out' });
+      }, 180);
+    }, 4200);
+  }
+}
+
+/* карточки «За и против» на телефоне: счётчик свайпа */
+const prosTrack = $('[data-pros]');
+const prosNow = $('[data-pros-current]');
+prosTrack?.addEventListener(
+  'scroll',
+  () => {
+    const c = prosTrack.querySelector('.pro');
+    if (c && prosNow) prosNow.textContent = String(Math.round(prosTrack.scrollLeft / (c.offsetWidth + 12)) + 1);
+  },
+  { passive: true }
+);
+$$('.pro').forEach((card) =>
+  card.addEventListener('pointerenter', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    buttonArc(card, 0.035);
+    playIcon(card.querySelector('.pro__icon'));
+  })
+);
+
+/* сравнение на телефоне: вкладки пакетов, переключение — с искрой */
+const tabs = $$('.cmp__tab');
+function selectTab(i, focus = false) {
+  tabs.forEach((t, k) => {
+    const on = k === i;
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+    const panel = document.getElementById(t.getAttribute('aria-controls'));
+    if (panel) {
+      panel.hidden = !on;
+      if (on && !reduce()) {
+        panel.classList.remove('is-flash');
+        void panel.offsetWidth;
+        panel.classList.add('is-flash');
+      }
+    }
+  });
+  if (focus) tabs[i].focus();
+  const r = tabs[i].getBoundingClientRect();
+  storm.strike({ ax: r.left + scrollX + r.width / 2 + (Math.random() - 0.5) * 80, ay: scrollY - 10, bx: r.left + scrollX + r.width / 2, by: r.top + scrollY + 4, width: 2.6, layer: 'front', sparks: 14, flash: 0, scorch: false, smoke: false });
+}
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => selectTab(i));
+  t.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') selectTab((i + 1) % tabs.length, true);
+    if (e.key === 'ArrowLeft') selectTab((i + tabs.length - 1) % tabs.length, true);
+  });
 });
 
 /* ---------- старт ---------- */

@@ -69,6 +69,7 @@ add('чат', C.overlays.chat.title);
 const missing = must.filter(([, s]) => !hay.includes(norm(s)));
 // цены из пакетов — в формате таблицы
 const prices = C.comparison.rows.find((r) => r[0] === 'Цена пакета').slice(1);
+// цены — только в сводной таблице (из карточек пакетов убраны по просьбе заказчика)
 C.services.packages.forEach((p, i) => {
   const n = Number(prices[i].replace(/\D/g, ''));
   if (n !== p.price_rub) missing.push(['цена', `${p.title}: ${p.price_rub} ≠ ${prices[i]}`]);

@@ -86,7 +86,8 @@ function channel(points, rough, minLen, decay, rand, step = 0.034, jag = 0.62) {
       if (d <= st * 1.3) break;
       // чем ближе к цели, тем сильнее притяжение
       const pull = 1 - Math.min(1, d / total);
-      const ang = Math.atan2(dy, dx) + gauss(rand) * jag * (1 - pull * 0.65);
+      // отклонение не больше ±63°: без петель и шагов назад
+      const ang = Math.atan2(dy, dx) + clamp(gauss(rand) * jag * (1 - pull * 0.65), -1.1, 1.1);
       const len = st * (0.45 + rand() * 1.1);
       const nx = ax + Math.cos(ang) * len;
       const ny = ay + Math.sin(ang) * len;
@@ -202,10 +203,9 @@ export function generateBolt(o) {
 
 /* Слои «трубки» на светлом фоне. mul — множитель толщины, a — непрозрачность. */
 const LAYERS = [
-  { key: 'rim', color: [128, 0, 8], mul: 1.7, a: 0.75, add: 0.5, min: 1.6 },
-  { key: 'body', color: [226, 8, 16], mul: 1.2, a: 1, add: 0.45 },
-  { key: 'hot', color: [255, 96, 80], mul: 0.6, a: 0.92, add: 0, min: 2.1 },
-  { key: 'core', color: [255, 248, 244], mul: 0.27, a: 0.98, add: 0, min: 2.4 },
+  { key: 'body', color: [255, 30, 22], mul: 2.1, a: 0.95, add: 0.8 },
+  { key: 'hot', color: [255, 150, 132], mul: 1.25, a: 0.95, add: 0.3, min: 1 },
+  { key: 'core', color: [255, 255, 255], mul: 0.72, a: 1, add: 0.2, min: 1.2 },
 ];
 
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a < 0 ? 0 : a > 1 ? 1 : a})`;
