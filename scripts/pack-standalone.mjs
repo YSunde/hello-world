@@ -68,18 +68,21 @@ html = html.replace(/ poster="(assets\/[^"]+)"/g, (_, p) => ` poster="${asset(p)
 html = html.replace(/<source src="(assets\/[^"]+\.mp4)" type="video\/mp4">/g, (_, p) => {
   let file = join(root, p);
   let webm = '';
+  let mp4type = 'video/mp4';
   try {
     const small = join(tmp, 'video-720.mp4');
-    execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', file, '-vf', 'scale=1280:-2', '-c:v', 'libx264', '-preset', 'slow', '-crf', '25', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '112k', small]);
+    execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', file, '-vf', 'scale=1280:-2', '-c:v', 'libx264', '-profile:v', 'high', '-level', '3.1', '-preset', 'slow', '-crf', '25', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '112k', small]);
     file = small;
+    // точные кодеки: браузер без H.264 пропустит эту дорожку сразу и возьмёт WebM
+    mp4type = 'video/mp4; codecs=&quot;avc1.64001F, mp4a.40.2&quot;';
     // запасная дорожка WebM — для браузеров без H.264 (например, сборки Chromium)
     const vp9 = join(tmp, 'video-720.webm');
     execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', join(root, p), '-vf', 'scale=1280:-2', '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '40', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '4', '-c:a', 'libopus', '-b:a', '96k', vp9]);
-    webm = `<source src="${dataUri(vp9)}" type="video/webm">`;
+    webm = `<source src="${dataUri(vp9)}" type="video/webm; codecs=&quot;vp9, opus&quot;">`;
   } catch {
     console.warn('ffmpeg недоступен — в файл кладётся исходное видео');
   }
-  return `<source src="${dataUri(file)}" type="video/mp4">${webm}`;
+  return `<source src="${dataUri(file)}" type="${mp4type}">${webm}`;
 });
 html = html.replace(/ preload="none"/, ' preload="metadata"');
 
