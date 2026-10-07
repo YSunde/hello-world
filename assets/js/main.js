@@ -860,6 +860,13 @@ const ribbon = new Ribbon({
       if (on) fireBeams(w, $(whoTarget[key.slice(4)]), { delay: 950 });
     } else if (key.startsWith('pkg-')) {
       document.getElementById(key)?.classList.toggle('is-charged', on);
+      // зачёркивание «Сам себе режиссёр» — разряд пробегает по линии, на конце искры
+      const strike = on && !reduce() && document.querySelector(`#${key} .strike`);
+      if (strike)
+        setTimeout(() => {
+          const r = strike.getBoundingClientRect();
+          storm.sparks(r.right + scrollX, r.top + scrollY + r.height * 0.5, 14, -Math.PI / 4);
+        }, 520);
     } else if (key.startsWith('pro:')) {
       t.el.classList.toggle('is-on', on);
       if (on) playIcon(t.el.querySelector('.pro__icon'));
@@ -1061,6 +1068,69 @@ tabs.forEach((t, i) => {
     if (e.key === 'ArrowLeft') selectTab((i + tabs.length - 1) % tabs.length, true);
   });
 });
+
+/* услуги: слова слетаются, плавают, уворачиваются от курсора; между ними проскакивают разряды */
+const drift = $('[data-drift]');
+if (drift) {
+  const words = $$('.drift__w', drift);
+  if (reduce()) drift.classList.add('is-in');
+  else {
+    new IntersectionObserver(
+      (es) => {
+        for (const e of es) if (e.isIntersecting) drift.classList.add('is-in');
+      },
+      { threshold: 0.25 }
+    ).observe(drift);
+    const zone = drift.closest('.services__intro') || drift;
+    if (mqHover.matches) {
+      zone.addEventListener('pointermove', (e) => {
+        for (const w of words) {
+          const r = w.getBoundingClientRect();
+          const dx = r.left + r.width / 2 - e.clientX;
+          const dy = r.top + r.height / 2 - e.clientY;
+          const d = Math.hypot(dx, dy) || 1;
+          const f = Math.max(0, 1 - d / 260) * 34;
+          w.style.translate = `${((dx / d) * f).toFixed(1)}px ${((dy / d) * f).toFixed(1)}px`;
+        }
+      });
+      zone.addEventListener('pointerleave', () => words.forEach((w) => (w.style.translate = '')));
+    }
+    let last = -1;
+    storm.ambient(
+      drift,
+      () => {
+        if (words.length < 2) return null;
+        let a = Math.floor(Math.random() * words.length);
+        if (a === last) a = (a + 1) % words.length;
+        let b = (a + 1 + Math.floor(Math.random() * (words.length - 1))) % words.length;
+        last = b;
+        const ra = words[a].firstElementChild.getBoundingClientRect();
+        const rb = words[b].firstElementChild.getBoundingClientRect();
+        const from = pageXY(ra, ra.left < rb.left ? 0.92 : 0.08, 0.5);
+        const to = pageXY(rb, ra.left < rb.left ? 0.08 : 0.92, 0.5);
+        return {
+          ax: from.x,
+          ay: from.y,
+          bx: to.x,
+          by: to.y,
+          width: 2.2,
+          branches: 2,
+          sub: 0,
+          layer: 'front',
+          sparks: 10,
+          flash: 0,
+          scorch: false,
+          smoke: false,
+          onHit: () => {
+            words[b].classList.add('is-zapped');
+            setTimeout(() => words[b].classList.remove('is-zapped'), 480);
+          },
+        };
+      },
+      { min: 1800, max: 3600, first: 900 }
+    );
+  }
+}
 
 /* ---------- старт ---------- */
 header?.classList.toggle('is-scrolled', scrollY > 24);

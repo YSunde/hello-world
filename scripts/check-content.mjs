@@ -15,6 +15,7 @@ const text = html
   .replace(/<script[\s\S]*?<\/script>/g, ' ')
   .replace(/<style[\s\S]*?<\/style>/g, ' ')
   .replace(/<br\s*\/?>/g, ' ')
+  .replace(/<\/?s\b[^>]*>/g, '')
   .replace(/<[^>]+>/g, ' ')
   .replace(/&nbsp;/g, ' ')
   .replace(/&quot;/g, '"')
@@ -43,6 +44,7 @@ C.questions.items.forEach((q) => (add('вопрос', q.question), add('отве
 add('вопросы', C.questions.cta);
 add('услуги', C.services.title);
 add('услуги', C.services.intro);
+(C.services.intro_words || []).forEach((w) => add('услуги', w));
 C.services.packages.forEach((p) => {
   add('пакет', p.title);
   add('пакет', p.format);

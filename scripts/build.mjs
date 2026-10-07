@@ -432,6 +432,9 @@ ${sprite()}
       <div class="services__intro-text">
         <h2 class="display section__title services__title" id="services-title" tabindex="-1">${esc(S.title)}</h2>
         <p class="services__lead">${esc(S.intro)}</p>
+        <ul class="drift" data-drift aria-label="${attr(S.intro_words.join(', '))}">
+          ${S.intro_words.map((w, i) => `<li class="drift__w drift__w--${i}" style="--i:${i}"><span>${esc(w)}</span></li>`).join('')}
+        </ul>
       </div>
       <div class="services__presenter">${who('services', '10-services-presenter-person', { imgCls: 'services__person', sizes: '(min-width: 1024px) 26vw, 60vw', extra: doodle('present'), slide: 'right' })}</div>
     </div>
@@ -443,7 +446,9 @@ ${sprite()}
           return `<li class="pkg" id="pkg-${p.id}" data-pkg>
         <div class="pkg__num" aria-hidden="true"><span data-tap="pkg-${p.id}">${p.number}</span></div>
         <div class="pkg__head">
-          <h3 class="pkg__title"><span class="pkg__kicker">${esc(kicker)}</span> <span class="pkg__name">${esc(name)}</span></h3>
+          <h3 class="pkg__title"><span class="pkg__kicker">${esc(kicker)}</span> <span class="pkg__name">${
+            p.title_struck ? esc(name).replace(esc(p.title_struck), `<s class="strike">${esc(p.title_struck)}</s>`) : esc(name)
+          }</span></h3>
           <dl class="pkg__meta">
             <div><dt>Формат:</dt> <dd>${esc(p.format)}</dd></div>
             <div><dt>Срок:</dt> <dd>${p.days} дней</dd></div>
