@@ -1,6 +1,9 @@
 {
   "name": "КБ-13 · сайт",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
   "forwardPorts": [8013],
   "portsAttributes": {
     "8013": {
@@ -9,6 +12,7 @@
     }
   },
   "postStartCommand": "setsid nohup node scripts/serve.mjs > /tmp/kb13-serve.log 2>&1 < /dev/null &",
+  "postAttachCommand": "setsid nohup bash -c 'for i in $(seq 1 12); do gh codespace ports visibility 8013:public -c \"$CODESPACE_NAME\" && exit 0; sleep 5; done' > /tmp/kb13-port.log 2>&1 < /dev/null &",
   "customizations": {
     "codespaces": {
       "openFiles": ["README.md"]
