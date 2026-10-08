@@ -3351,3 +3351,22 @@ main,
   --crop-bottom: 0.18;
   overflow: hidden;
 }
+
+/* полосы-прыжки ленты уже: меньше воздуха вокруг разряда между блоками */
+.discharge {
+  height: clamp(40px, 5vw, 72px);
+}
+.discharge:has(+ .section) {
+  margin-top: calc(var(--section-y) * -0.55);
+}
+.discharge + .section {
+  padding-top: calc(var(--section-y) * 0.3);
+}
+@media (min-width: 1024px) {
+  .services__intro {
+    align-items: center;
+  }
+  .comparison__presenter {
+    max-width: 280px;
+  }
+}
