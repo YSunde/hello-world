@@ -3181,3 +3181,173 @@ main,
     transform: none;
   }
 }
+
+/* =========================================================
+   Правка 08.10: компактнее, без наложений, баннер листается сам
+   ========================================================= */
+:root {
+  --section-y: 52px;
+}
+@media (min-width: 768px) {
+  :root {
+    --section-y: 68px;
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --section-y: clamp(76px, 6.4vw, 104px);
+  }
+  .section__title {
+    margin-bottom: var(--s5);
+  }
+  .services__intro-text {
+    padding-bottom: var(--s5);
+  }
+  .pkg {
+    padding-block: var(--s6);
+  }
+  .comparison__title {
+    margin-bottom: var(--s5);
+  }
+  .hero__copy {
+    padding-bottom: var(--s6);
+  }
+}
+.services__intro-text {
+  padding-bottom: var(--s3);
+}
+.discharge {
+  height: clamp(48px, 6vw, 96px);
+}
+.site-footer {
+  padding-block: var(--s6) var(--s8);
+}
+.questions__cta {
+  margin-top: var(--s4);
+}
+.about__grid {
+  row-gap: var(--s4);
+}
+
+/* автолистание: активная черта заполняется, пока идёт отсчёт; кнопка паузы */
+.slider-ctrl__ticks i {
+  position: relative;
+  overflow: hidden;
+}
+.slider-ctrl__ticks i.is-on {
+  background: var(--red);
+}
+.slider-ctrl.is-auto .slider-ctrl__ticks i.is-on {
+  background: var(--line);
+}
+.slider-ctrl.is-auto .slider-ctrl__ticks i.is-on::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--red);
+  transform-origin: left;
+  animation: tick-fill var(--auto, 6500ms) linear forwards;
+}
+@keyframes tick-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.slider-ctrl__auto .icon {
+  width: 20px;
+  height: 20px;
+}
+.slider-ctrl__auto .i-play,
+.slider-ctrl__auto[aria-pressed='false'] .i-pause {
+  display: none;
+}
+.slider-ctrl__auto[aria-pressed='false'] .i-play {
+  display: inline;
+}
+
+/* слова в «Услугах»: в потоке, переносятся сами — наложиться друг на друга не могут */
+.drift {
+  position: static;
+  height: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px clamp(18px, 2.4vw, 36px);
+  margin-top: var(--s4);
+  padding-block: 8px;
+}
+.drift__w {
+  position: relative;
+  left: auto;
+  top: auto;
+}
+
+.drift__w:nth-child(3) {
+  margin-left: clamp(0px, 4vw, 48px);
+}
+.drift__w--0,
+.drift__w--1,
+.drift__w--2,
+.drift__w--3 {
+  --dx: 6px;
+  --dy: 5px;
+}
+@media (max-width: 479px) {
+  .drift {
+    height: auto;
+  }
+}
+
+/* аватар чата: подпись — только при наведении, страницу не перекрывает */
+.talk__bubble,
+.talk.is-saying .talk__bubble {
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease), transform 0.3s var(--ease-out);
+}
+@media (hover: hover) {
+  .talk:hover .talk__bubble {
+    opacity: 1;
+    transform: none;
+  }
+}
+.talk:focus-visible .talk__bubble {
+  opacity: 1;
+  transform: none;
+}
+@media (min-width: 1024px) {
+  .pkg__photo {
+    align-self: start;
+    max-width: 560px;
+    margin-top: var(--s2);
+  }
+}
+
+/* пакеты: рамка 3:2 с картинкой, молнией и рисунками; пустые прозрачные поля кадра срезаются,
+   координаты молнии и рисунков внутри рамки не меняются */
+.pkg__photo {
+  aspect-ratio: auto;
+}
+.pkg__frame {
+  position: relative;
+  aspect-ratio: 3 / 2;
+  margin-top: calc(var(--crop-top, 0) * -66.667%);
+  margin-bottom: calc(var(--crop-bottom, 0) * -66.667%);
+}
+.pkg__frame > img {
+  width: 100%;
+  height: 100%;
+}
+.pkg__photo--consultation {
+  --crop-top: 0.3;
+  overflow: hidden;
+}
+.pkg__photo--partnership {
+  --crop-top: 0.12;
+  --crop-bottom: 0.18;
+  overflow: hidden;
+}

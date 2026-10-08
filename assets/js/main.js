@@ -247,11 +247,7 @@ function heroUpdate() {
   if (heroBolt && heroIntroDone && heroLinked()) heroBolt.setReveal(HERO_BASE + (1 - HERO_BASE) * p);
   if (placard) placard.style.transform = heroLinked() ? `translate3d(0, ${(-16 * p).toFixed(2)}px, 0)` : '';
   const copy = $('.hero__copy');
-  if (copy && !reduce()) {
-    const q = Math.min(1, scrollY / (innerHeight * 0.85));
-    copy.style.transform = `translate3d(0, ${(scrollY * 0.14).toFixed(1)}px, 0)`;
-    copy.style.opacity = (1 - q * 0.9).toFixed(3);
-  }
+  if (copy && !reduce()) copy.style.transform = scrollY > 0 ? `translate3d(0, ${(Math.min(scrollY, heroH) * 0.08).toFixed(1)}px, 0)` : '';
 }
 let heroIntroDone = false;
 if (heroBolt) {
@@ -260,7 +256,10 @@ if (heroBolt) {
     measureHero();
     heroUpdate();
   }).observe(hero);
-  new IntersectionObserver((es) => (heroVisible = es[0].isIntersecting)).observe(hero);
+  new IntersectionObserver((es) => {
+    heroVisible = es[0].isIntersecting;
+    heroUpdate();
+  }).observe(hero);
   const intro = () => {
     if (reduce()) {
       heroBolt.settle(1);
@@ -284,7 +283,7 @@ addEventListener(
     ticking = true;
     requestAnimationFrame(() => {
       ticking = false;
-      if (heroVisible) heroUpdate();
+      if (heroVisible || scrollY < heroTop + heroH + 80) heroUpdate();
       spineUpdate();
       scrubUpdate();
       header?.classList.toggle('is-scrolled', scrollY > 24);
@@ -460,6 +459,8 @@ function setSlide(i, { strike = true } = {}) {
   const n = slides.length;
   i = (i + n) % n;
   if (i === current) return;
+  // быстрые повторные переключения: недоигранные «барабаны» отменяются, текст всегда на месте
+  slides.forEach((s) => s.querySelectorAll('.roll').forEach((r) => r.getAnimations?.().forEach((a) => a.cancel())));
   const prev = slides[current];
   prev.classList.remove('is-active', 'is-entering');
   prev.inert = true;
@@ -481,6 +482,7 @@ function setSlide(i, { strike = true } = {}) {
     );
     setTimeout(() => fireBeams($('[data-who="hero"]'), next.querySelector('.roll')), 480);
   }
+  queueMicrotask(() => autoSchedule?.());
   current = i;
   if (counter) counter.textContent = String(i + 1);
   ticks.forEach((t, k) => t.classList.toggle('is-on', k === i));
@@ -977,12 +979,22 @@ if (!reduce() && 'animate' in Element.prototype) {
       vis.sort((a, b) => (a.compareDocumentPosition(b) & 4 ? -1 : 1));
       vis.forEach((el, i) => {
         io.unobserve(el);
-        play(el, i * 90);
+        play(el, Math.min(i, 4) * 80);
       });
     },
-    { rootMargin: '0px 0px -10% 0px', threshold: 0.01 }
+    { rootMargin: '0px 0px -6% 0px', threshold: 0.01 }
   );
   items.forEach((el) => io.observe(el));
+  const revealRest = () => {
+    if (scrollY + innerHeight < document.documentElement.scrollHeight - 8) return;
+    items.forEach((el) => {
+      if (el.style.opacity === '0') {
+        io.unobserve(el);
+        el.style.opacity = '';
+      }
+    });
+  };
+  addEventListener('scroll', revealRest, { passive: true });
 }
 
 /* «говорящая» кнопка чата: появляется, время от времени «говорит» */
@@ -1002,22 +1014,11 @@ if (talk) {
   if (!reduce() && face.animate) {
     const S = 'cubic-bezier(.34,1.56,.64,1)';
     face.animate([{ transform: 'translateY(18px) scale(.5)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 720, delay: 900, easing: S, fill: 'backwards' });
-    bubble.animate([{ transform: 'translateX(24px) scale(.2)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 640, delay: 1400, easing: S, fill: 'backwards' });
     setInterval(() => {
-      if (document.hidden || hover || phrases.length < 2) return;
-      text.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-8px)' }], { duration: 180, easing: 'ease-in' });
-      setTimeout(() => {
-        n = (n + 1) % phrases.length;
-        text.textContent = phrases[n];
-        talk.classList.add('is-saying');
-        clearTimeout(talk._q);
-        talk._q = setTimeout(() => talk.classList.remove('is-saying'), 2600);
-        text.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.2,.9,.2,1)' });
-        bubble.animate([{ transform: 'none' }, { transform: 'scale(1.08) rotate(-2deg)', offset: 0.35 }, { transform: 'scale(.98)', offset: 0.7 }, { transform: 'none' }], { duration: 560, easing: 'ease-out' });
-        face.animate([{ transform: 'none' }, { transform: 'rotate(-7deg) translateY(-2px)', offset: 0.25 }, { transform: 'rotate(4deg)', offset: 0.5 }, { transform: 'rotate(-3deg)', offset: 0.75 }, { transform: 'none' }], { duration: 900, easing: 'ease-in-out' });
-        waves.animate([{ opacity: 0, transform: 'translateX(4px) scale(.6)' }, { opacity: 1, transform: 'none', offset: 0.3 }, { opacity: 1, offset: 0.7 }, { opacity: 0, transform: 'translateX(-2px)' }], { duration: 1100, easing: 'ease-out' });
-      }, 180);
-    }, 4200);
+      if (document.hidden || hover) return;
+      face.animate([{ transform: 'none' }, { transform: 'rotate(-7deg) translateY(-2px)', offset: 0.25 }, { transform: 'rotate(4deg)', offset: 0.5 }, { transform: 'rotate(-3deg)', offset: 0.75 }, { transform: 'none' }], { duration: 900, easing: 'ease-in-out' });
+      waves.animate([{ opacity: 0, transform: 'translateX(4px) scale(.6)' }, { opacity: 1, transform: 'none', offset: 0.3 }, { opacity: 1, offset: 0.7 }, { opacity: 0, transform: 'translateX(-2px)' }], { duration: 1100, easing: 'ease-out' });
+    }, 6000);
   }
 }
 
@@ -1089,7 +1090,7 @@ if (drift) {
           const dx = r.left + r.width / 2 - e.clientX;
           const dy = r.top + r.height / 2 - e.clientY;
           const d = Math.hypot(dx, dy) || 1;
-          const f = Math.max(0, 1 - d / 260) * 34;
+          const f = Math.max(0, 1 - d / 220) * 12;
           w.style.translate = `${((dx / d) * f).toFixed(1)}px ${((dy / d) * f).toFixed(1)}px`;
         }
       });
@@ -1130,6 +1131,49 @@ if (drift) {
       { min: 1800, max: 3600, first: 900 }
     );
   }
+}
+
+/* баннер листается сам: пауза при наведении, фокусе, скрытой вкладке и вне экрана; кнопка паузы */
+const AUTO_MS = 6500;
+const sliderCtrl = $('[data-slider-ctrl]');
+const autoBtn = $('[data-autoplay]');
+const liveCount = $('.slider-ctrl__count');
+let autoOn = !reduce();
+let autoHold = false;
+let autoVisible = true;
+let autoT = 0;
+function autoSchedule() {
+  clearTimeout(autoT);
+  if (!sliderCtrl || slides.length < 2) return;
+  const run = autoOn && !autoHold && autoVisible && !document.hidden;
+  sliderCtrl.classList.remove('is-auto');
+  if (run) {
+    void sliderCtrl.offsetWidth;
+    sliderCtrl.classList.add('is-auto');
+    autoT = setTimeout(() => setSlide(current + 1), AUTO_MS);
+  }
+  autoBtn?.setAttribute('aria-pressed', String(autoOn));
+  autoBtn?.setAttribute('aria-label', autoOn ? 'Остановить автопрокрутку' : 'Включить автопрокрутку');
+  liveCount?.setAttribute('aria-live', autoOn ? 'off' : 'polite');
+}
+if (sliderCtrl) {
+  sliderCtrl.style.setProperty('--auto', AUTO_MS + 'ms');
+  autoBtn?.addEventListener('click', () => {
+    autoOn = !autoOn;
+    autoSchedule();
+  });
+  const zone = sliderCtrl; // пауза при наведении — только на кнопки слайдера, а не на весь экран
+  if (mqHover.matches) {
+    zone?.addEventListener('pointerenter', () => ((autoHold = true), autoSchedule()));
+    zone?.addEventListener('pointerleave', () => ((autoHold = false), autoSchedule()));
+  }
+  $('.hero__copy')?.addEventListener('focusin', () => ((autoHold = true), autoSchedule()));
+  $('.hero__copy')?.addEventListener('focusout', (e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) (autoHold = false), autoSchedule();
+  });
+  document.addEventListener('visibilitychange', autoSchedule);
+  new IntersectionObserver((es) => ((autoVisible = es[0].isIntersecting), autoSchedule()), { threshold: 0.3 }).observe($('#home'));
+  autoSchedule();
 }
 
 /* ---------- старт ---------- */

@@ -353,6 +353,7 @@ ${sprite()}
           <button class="icon-btn slider-ctrl__btn" type="button" aria-controls="hero-slide-1 hero-slide-2 hero-slide-3" aria-label="Предыдущий смысл" data-prev>${icon('arrow-left')}</button>
           <p class="slider-ctrl__count" aria-live="polite"><span class="sr-only">Смысл </span><span data-current>1</span><span aria-hidden="true"> / </span><span class="sr-only"> из </span><span>${H.slides.length}</span></p>
           <button class="icon-btn slider-ctrl__btn" type="button" aria-controls="hero-slide-1 hero-slide-2 hero-slide-3" aria-label="Следующий смысл" data-next>${icon('arrow-right')}</button>
+          <button class="icon-btn slider-ctrl__btn slider-ctrl__auto" type="button" aria-pressed="true" aria-label="Остановить автопрокрутку" data-autoplay><svg class="icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><g class="i-pause" fill="currentColor"><rect x="14" y="12" width="6" height="24" rx="1"/><rect x="28" y="12" width="6" height="24" rx="1"/></g><path class="i-play" d="M17 12 36 24 17 36Z" fill="currentColor"/></svg></button>
           <span class="slider-ctrl__ticks" aria-hidden="true">${H.slides.map((_, i) => `<i${i === 0 ? ' class="is-on"' : ''}></i>`).join('')}</span>
         </div>
       </div>
@@ -454,12 +455,12 @@ ${sprite()}
             <div><dt>Срок:</dt> <dd>${p.days} дней</dd></div>
           </dl>
         </div>
-        <figure class="pkg__photo pkg__photo--${p.id}">
+        <figure class="pkg__photo pkg__photo--${p.id}"><div class="pkg__frame">
           ${PKG_ART[p.id].shadow ? shadow(pkgPhotos[p.id], PKG_ART[p.id].shadow) : ''}
           ${photo(pkgPhotos[p.id], { sizes: '(min-width: 1024px) 30vw, 92vw' })}
           ${PKG_ART[p.id].bolt ? `<div class="bolt-field pkg__bolt" data-bolt="${PKG_ART[p.id].bolt}" aria-hidden="true"></div>` : ''}
           ${PKG_ART[p.id].doodle ? doodle(PKG_ART[p.id].doodle) : ''}
-        </figure>
+        </div></figure>
         <div class="pkg__body">
           <p class="pkg__text">${esc(p.text)}</p>
           <div class="pkg__foot">
