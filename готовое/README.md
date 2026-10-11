@@ -12,4 +12,4 @@
 Как скачать с GitHub: открыть файл → кнопка «Download raw file» (стрелка вниз справа сверху).
 
 Видео внутри облегчено до 720p (MP4 + запасной WebM), остальное — как на сайте.
-Пересобрать файлы: `node scripts/pack-standalone.mjs готовое/KB13-v3-latest.html` в нужной ветке.
+Пересобрать файлы: `node scripts/pack-standalone.mjs готовое/KB13-v3-latest.html` в нужной ветке — нужен только Node.js, интернет не нужен.
