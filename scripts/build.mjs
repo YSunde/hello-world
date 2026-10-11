@@ -193,6 +193,11 @@ const glowImg = (id, eager) => {
 const who = (key, id, { cls = '', imgCls = '', eager = false, sizes, alt, extra = '', slide = '', eyes = true } = {}) =>
   `<div class="who ${cls}" data-who="${key}"${eyes ? ` data-eyes="${EYES[id].join(',')}"` : ''}${slide ? ` data-slide-from="${slide}"` : ''} style="aspect-ratio:${IMG[id].width} / ${IMG[id].height}">${glowImg(id, eager)}${person(id, { cls: `who__img ${imgCls}`, eager, sizes, alt })}${extra}${eyes ? beams(id) : ''}</div>`;
 
+/* типограф для новых блоков: тире не начинает строку, короткие предлоги и союзы не висят в конце строки */
+const tp = (t) =>
+  esc(t)
+    .replace(/ ([–—-]) /g, '&nbsp;$1 ')
+    .replace(/(^|[\s(«])([а-яёА-ЯЁ]{1,2}) /g, '$1$2&nbsp;');
 /* ---------- данные ---------- */
 const H = C.hero;
 const A = C.about;
@@ -447,19 +452,19 @@ ${sprite()}
   <div class="wrap">
     <div class="quiz__head">
       <p class="quiz__eyebrow">${esc(QZ.eyebrow)}</p>
-      <h2 class="display section__title quiz__title" id="quiz-title" tabindex="-1">${esc(QZ.title)}</h2>
-      <p class="quiz__lead">${esc(QZ.lead)}</p>
+      <h2 class="display section__title quiz__title" id="quiz-title" tabindex="-1">${tp(QZ.title)}</h2>
+      <p class="quiz__lead">${tp(QZ.lead)}</p>
     </div>
     <form class="form quiz__box" id="brief-form" novalidate data-form="brief" data-quiz aria-labelledby="quiz-title">
       <div class="quiz__steps" data-quiz-steps>
       ${QZ.steps
         .map(
           (st, i) => `<fieldset class="quiz__step${i === 0 ? ' is-active' : ''}" data-step="${i}">
-        <legend class="quiz__q"><span class="quiz__qn">${esc(QZ.step_label)} ${i + 1}</span>${esc(st.question)}</legend>
+        <legend class="quiz__q"><span class="quiz__qn">${esc(QZ.step_label)} ${i + 1}</span>${tp(st.question)}</legend>
         <div class="quiz__opts">${st.options
           .map(
             (o, j) =>
-              `<label class="quiz__opt"><input type="radio" name="q${i + 1}" value="${attr(o)}"${st.packages ? ` data-package="${st.packages[j]}"` : ''}><span class="quiz__opt-t">${esc(o)}</span><svg class="quiz__opt-bolt" viewBox="0 0 2000 1278.16" aria-hidden="true" focusable="false"><use href="#kb-bolt"/></svg></label>`
+              `<label class="quiz__opt"><input type="radio" name="q${i + 1}" value="${attr(o)}"${st.packages ? ` data-package="${st.packages[j]}"` : ''}><span class="quiz__opt-t">${tp(o)}</span><svg class="quiz__opt-bolt" viewBox="0 0 2000 1278.16" aria-hidden="true" focusable="false"><use href="#kb-bolt"/></svg></label>`
           )
           .join('')}</div>
       </fieldset>`
@@ -481,7 +486,7 @@ ${sprite()}
           <button class="quiz__restart" type="button" data-quiz-restart>${esc(QZ.restart)}</button>
         </div>
         <div class="quiz__contact">
-          <p class="quiz__ct">${esc(QZ.contact_title)}</p>
+          <p class="quiz__ct">${tp(QZ.contact_title)}</p>
           <div class="field">
             <label class="field__label" for="bf-name">${esc(QZ.labels.name)}</label>
             <input class="field__input" id="bf-name" name="name" type="text" autocomplete="name" required aria-describedby="bf-name-err">
@@ -561,8 +566,8 @@ ${sprite()}
 
 <section class="cases section" id="cases" aria-labelledby="cases-title">
   <div class="wrap cases__head">
-    <h2 class="display section__title" id="cases-title" tabindex="-1">${esc(CS.title)}</h2>
-    <p class="cases__lead">${esc(CS.lead)}</p>
+    <h2 class="display section__title" id="cases-title" tabindex="-1">${tp(CS.title)}</h2>
+    <p class="cases__lead">${tp(CS.lead)}</p>
     <div class="cases__nav">
       <button class="icon-btn" type="button" aria-label="Предыдущее дело" data-cases-prev>${icon('arrow-left')}</button>
       <span class="cases__count" aria-hidden="true"><span data-cases-n>1</span>&nbsp;/&nbsp;${CS.items.length}</span>
@@ -577,10 +582,10 @@ ${sprite()}
         <p class="case__no">Дело №&nbsp;${String(i + 1).padStart(2, '0')}</p>
         <span class="case__stamp" aria-hidden="true">${esc(CS.stamp)}</span>
         <p class="case__tag">${esc(c.tag)}</p>
-        <p class="case__metric"><span class="case__big">${esc(c.metric)}</span><span class="case__cap">${esc(c.metric_caption)}</span></p>
-        <h3 class="case__title" id="case-${c.id}-t">${esc(c.title)}</h3>
+        <p class="case__metric"><span class="case__big">${esc(c.metric)}</span><span class="case__cap">${tp(c.metric_caption)}</span></p>
+        <h3 class="case__title" id="case-${c.id}-t">${tp(c.title)}</h3>
         <p class="case__teaser">${esc(c.text[0])}</p>
-        <div class="case__full">${c.text.map((t) => `<p>${esc(t)}</p>`).join('')}${c.quote ? `<blockquote class="case__quote"><p>${esc(c.quote)}</p></blockquote>` : ''}${(c.after || []).map((t) => `<p>${esc(t)}</p>`).join('')}</div>
+        <div class="case__full">${c.text.map((t) => `<p>${esc(t)}</p>`).join('')}${c.quote ? `<blockquote class="case__quote"><p>${tp(c.quote)}</p></blockquote>` : ''}${(c.after || []).map((t) => `<p>${esc(t)}</p>`).join('')}</div>
         ${btn(CS.read, { cls: 'btn--ghost case__open', attrs: `aria-haspopup="dialog" data-case-open="${c.id}"` })}
       </article>
     </li>`
