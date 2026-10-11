@@ -278,7 +278,8 @@ function heroZap(target, delay = 0) {
       [{ opacity: 0.8 }, { opacity: 1, filter: 'brightness(1.6)', offset: 0.15 }, { opacity: 0.35, offset: 0.3 }, { opacity: 1, offset: 0.45 }, { opacity: 0.8 }],
       { duration: 700, easing: 'steps(1, end)' }
     );
-    fireBeams(w, target);
+    // на телефоне человек стоит под текстом — лучи шли бы через весь текст, поэтому только вспышка контура
+    if (mqDesk.matches) fireBeams(w, target);
   }, delay);
 }
 if (hero) {
@@ -465,6 +466,8 @@ function setSlide(i) {
   const dir = i > current || (current === n - 1 && i === 0) ? 1 : -1;
   // быстрые повторные переключения: недоигранные «барабаны» отменяются, текст всегда на месте
   slides.forEach((s) => s.querySelectorAll('.roll').forEach((r) => r.getAnimations?.().forEach((a) => a.cancel())));
+  slider?.getAnimations?.().forEach((a) => a.cancel());
+  const h0 = slider?.offsetHeight || 0;
   const prev = slides[current];
   prev.classList.remove('is-active', 'is-entering');
   prev.inert = true;
@@ -480,9 +483,13 @@ function setSlide(i) {
     const E = 'cubic-bezier(.7,0,.2,1)';
     prev.querySelector('.roll')?.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${-105 * dir}%)` }], { duration: 420, easing: E });
     next.querySelector('.roll')?.animate(
-      [{ transform: `translateY(${105 * dir}%)` }, { transform: `translateY(${-6 * dir}%)`, offset: 0.78 }, { transform: 'translateY(0)' }],
+      [{ transform: `translateY(${105 * dir}%)`, opacity: 0 }, { opacity: 1, offset: 0.35 }, { transform: `translateY(${-6 * dir}%)`, offset: 0.78 }, { transform: 'translateY(0)', opacity: 1 }],
       { duration: 640, easing: E }
     );
+    // высота блока плавно подстраивается под новый слайд; на время роста лишнее обрезается
+    const h1 = slider?.offsetHeight || 0;
+    if (slider && Math.abs(h1 - h0) > 2)
+      slider.animate([{ height: h0 + 'px', overflow: 'hidden' }, { height: h1 + 'px', overflow: 'hidden' }], { duration: 460, easing: 'cubic-bezier(.3,.7,.2,1)' });
     heroZap(next.querySelector('.roll'), 480);
   }
   queueMicrotask(() => autoSchedule?.());
@@ -490,7 +497,21 @@ function setSlide(i) {
   if (counter) counter.textContent = String(i + 1);
   ticks.forEach((t, k) => t.classList.toggle('is-on', k === i));
 }
+/* баннер не меняет высоту при смене смыслов: блок текста заранее занимает место самого длинного
+   слайда, а запас уходит вниз, под кнопки (заголовок всегда сверху, без пустоты посередине) */
+function fitHero() {
+  const copy = $('.hero__copy');
+  if (!slider || !copy) return;
+  // высота по содержимому (колонка в сетке растянута, её offsetHeight не подходит)
+  const last = copy.lastElementChild;
+  const contentH = last.getBoundingClientRect().bottom - copy.getBoundingClientRect().top + parseFloat(getComputedStyle(copy).paddingBottom);
+  const maxH = Math.max(...slides.map((s) => s.offsetHeight));
+  copy.style.minHeight = Math.ceil(contentH - slides[current].offsetHeight + maxH) + 'px';
+}
 if (slider) {
+  fitHero();
+  addEventListener('resize', fitHero);
+  (document.fonts?.ready || Promise.resolve()).then(fitHero);
   slides.forEach((s, k) => {
     if (k) {
       s.inert = true;
@@ -635,11 +656,13 @@ const DEMO = {
   contact: 'Демо-режим: приём заявок ещё не подключён, поэтому заявка не отправлена. Введённые данные остались в форме.',
   lead: 'Демо-режим: приём заявок ещё не подключён, поэтому заявка не отправлена. Данные остались в форме.',
   checklist: 'Доставка чек-листа ещё не подключена — письмо не отправлено. Адрес остался в поле.',
+  brief: 'Демо-режим: приём брифов ещё не подключён, поэтому бриф не отправлен. Ответы и контакты остались в форме.',
 };
 const OK = {
   contact: 'Заявка отправлена. Ответим по указанному контакту.',
   lead: 'Заявка отправлена. Ответим по указанному телефону.',
   checklist: 'Готово: чек-лист отправлен на указанную почту.',
+  brief: 'Бриф отправлен. Вернёмся с предложением по указанному контакту.',
 };
 $$('form[data-form]').forEach((form) => {
   const kind = form.dataset.form;
@@ -944,7 +967,7 @@ if (!reduce() && nativeAnimate) {
   };
   $$('.section__title, .form__title, .about__punch').forEach((el) => add(el, 'mask'));
   $$(
-    '.about__lead, .about__p, .about__cta, .about__media, .services__lead, .pkg__head, .pkg__photo, .pkg__body, .questions__cta, .comparison__actions, .table-scroll, .contact__group, .contact-form .field, .contact-form .form__submit, .site-footer__grid > *, .pro'
+    '.about__lead, .about__p, .about__cta, .about__media, .services__lead, .pkg__head, .pkg__photo, .pkg__body, .questions__cta, .comparison__actions, .table-scroll, .contact__group, .contact-form .field, .contact-form .form__submit, .site-footer__grid > *, .pro, .quiz__lead, .quiz__box, .cases__lead, .cases__nav, .case'
   ).forEach((el) => add(el, 'up'));
   const E = 'cubic-bezier(.16,1,.3,1)';
   const play = (el, delay) => {
@@ -1162,6 +1185,135 @@ if (sliderCtrl) {
   document.addEventListener('visibilitychange', autoSchedule);
   new IntersectionObserver((es) => ((autoVisible = es[0].isIntersecting), autoSchedule()), { threshold: 0.3 }).observe($('#home'));
   autoSchedule();
+}
+
+/* ---------- мини-бриф: по шагу за раз, выбор мышью сразу ведёт дальше, клавиатурой — кнопкой «Дальше» ---------- */
+const quiz = $('[data-quiz]');
+if (quiz) {
+  const steps = $$('[data-step]', quiz);
+  const last = steps.length - 1;
+  const nEl = $('[data-quiz-n]', quiz);
+  const countEl = nEl?.parentElement;
+  const qTicks = $$('.quiz__ticks i', quiz);
+  const back = $('[data-quiz-back]', quiz);
+  const next = $('[data-quiz-next]', quiz);
+  const pkgInput = quiz.querySelector('input[name="package"]');
+  let at = 0;
+  let byPointer = false;
+  const answered = (k) => k >= last || !!steps[k].querySelector('input:checked');
+  const sync = () => $$('.quiz__opt', quiz).forEach((o) => o.classList.toggle('is-checked', !!o.querySelector('input:checked')));
+  function showResult() {
+    const pick = quiz.querySelector('input[data-package]:checked')?.dataset.package || 'consultation';
+    $$('[data-pkg]', quiz).forEach((el) => (el.hidden = el.dataset.pkg !== pick));
+    const shown = quiz.querySelector(`[data-pkg="${pick}"]`);
+    if (pkgInput) pkgInput.value = shown?.querySelector('.quiz__pkg-title')?.textContent || pick;
+    const t = shown?.querySelector('.quiz__pkg-title');
+    if (t && !reduce()) {
+      setTimeout(() => {
+        zapTitle(t);
+        const r = t.getBoundingClientRect();
+        storm.strike({ ax: r.left + scrollX + r.width * 0.3 + (Math.random() - 0.5) * 120, ay: r.top + scrollY - 160, bx: r.left + scrollX + r.width * 0.3, by: r.top + scrollY + 6, width: 2.6, layer: 'front', sparks: 16, flash: 0, scorch: false, smoke: false });
+      }, 260);
+    }
+  }
+  function go(k, { focus = false } = {}) {
+    k = Math.max(0, Math.min(last, k));
+    const dir = k >= at ? 1 : -1;
+    steps.forEach((st, i) => {
+      const on = i === k;
+      st.classList.toggle('is-active', on);
+      st.inert = !on;
+    });
+    at = k;
+    if (nEl) nEl.textContent = String(Math.min(k + 1, last));
+    countEl?.classList.toggle('is-done', k === last);
+    qTicks.forEach((t, i) => t.classList.toggle('is-on', i <= k));
+    back.hidden = k === 0;
+    next.hidden = k === last;
+    next.disabled = !answered(k);
+    if (k === last) showResult();
+    if (!reduce()) steps[k].animate([{ opacity: 0, transform: `translateX(${3 * dir}%)` }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    if (focus) (steps[k].querySelector('input:checked') || steps[k].querySelector('input'))?.focus({ preventScroll: true });
+  }
+  quiz.addEventListener('pointerdown', (e) => (byPointer = !!e.target.closest('.quiz__opt')));
+  quiz.addEventListener('keydown', () => (byPointer = false));
+  quiz.addEventListener('change', (e) => {
+    const inp = e.target;
+    if (inp.type !== 'radio') return;
+    sync();
+    next.disabled = false;
+    const r = inp.closest('.quiz__opt').getBoundingClientRect();
+    if (!reduce()) storm.sparks(r.right + scrollX - 28, r.top + scrollY + r.height / 2, 12);
+    if (byPointer) {
+      clearTimeout(quiz._t);
+      quiz._t = setTimeout(() => go(at + 1), reduce() ? 0 : 420);
+    }
+  });
+  back.addEventListener('click', () => go(at - 1, { focus: true }));
+  next.addEventListener('click', () => go(at + 1, { focus: true }));
+  $('[data-quiz-restart]', quiz)?.addEventListener('click', () => {
+    $$('input[type="radio"]', quiz).forEach((i) => (i.checked = false));
+    sync();
+    go(0, { focus: true });
+  });
+  quiz.classList.add('is-live');
+  go(0);
+}
+
+/* ---------- кейсы: лента «дел», печать ставится при появлении, полный текст — в окне ---------- */
+const casesTrack = $('[data-cases]');
+if (casesTrack) {
+  const cards = $$('[data-case]', casesTrack);
+  const nEl = $('[data-cases-n]');
+  const stepW = () => (cards[1] ? cards[1].offsetLeft - cards[0].offsetLeft : casesTrack.clientWidth);
+  const curIdx = () => Math.round(casesTrack.scrollLeft / Math.max(1, stepW()));
+  const upd = () => nEl && (nEl.textContent = String(Math.min(cards.length, curIdx() + 1)));
+  casesTrack.addEventListener('scroll', () => requestAnimationFrame(upd), { passive: true });
+  const move = (d) => casesTrack.scrollBy({ left: d * stepW(), behavior: gentle() ? 'auto' : 'smooth' });
+  $('[data-cases-prev]')?.addEventListener('click', () => move(-1));
+  $('[data-cases-next]')?.addEventListener('click', () => move(1));
+  casesTrack.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') (e.preventDefault(), move(1));
+    if (e.key === 'ArrowLeft') (e.preventDefault(), move(-1));
+  });
+  // печать «Выполнено» с хлопком и искрами — каждый раз, когда карточка появляется
+  const stampIO = new IntersectionObserver(
+    (es) =>
+      es.forEach((e) => {
+        const c = e.target;
+        if (e.isIntersecting && !c.classList.contains('is-stamped')) {
+          setTimeout(() => {
+            c.classList.add('is-stamped');
+            if (reduce()) return;
+            setTimeout(() => {
+              const r = c.querySelector('.case__stamp').getBoundingClientRect();
+              storm.sparks(r.left + scrollX + r.width / 2, r.top + scrollY + r.height / 2, 14);
+            }, 220);
+          }, 160 + (cards.indexOf(c) % 3) * 140);
+        } else if (!e.isIntersecting && e.boundingClientRect.top > innerHeight) c.classList.remove('is-stamped');
+      }),
+    { threshold: 0.45 }
+  );
+  if (reduce()) cards.forEach((c) => c.classList.add('is-stamped'));
+  else cards.forEach((c) => stampIO.observe(c));
+  // окно дела
+  const dlg = $('#case-dialog');
+  $$('[data-case-open]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const card = b.closest('[data-case]');
+      if (!dlg || !card) return;
+      $('[data-case-no]', dlg).textContent = card.querySelector('.case__no').textContent + ' · ' + card.querySelector('.case__tag').textContent;
+      $('[data-case-title]', dlg).textContent = card.querySelector('.case__title').textContent;
+      const m = $('[data-case-metric]', dlg);
+      m.innerHTML = '';
+      const big = document.createElement('b');
+      big.textContent = card.querySelector('.case__big').textContent;
+      m.append(big, document.createTextNode(card.querySelector('.case__cap').textContent));
+      $('[data-case-body]', dlg).innerHTML = card.querySelector('.case__full').innerHTML;
+      openModal(dlg, b);
+      setTimeout(() => dlg.querySelector('.modal__close')?.focus(), 40);
+    })
+  );
 }
 
 /* ---------- старт ---------- */

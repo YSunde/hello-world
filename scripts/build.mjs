@@ -201,6 +201,8 @@ const S = C.services;
 const T = C.comparison;
 const K = C.contact;
 const O = C.overlays;
+const QZ = C.quiz;
+const CS = C.cases;
 /* Порядок слайдов hero (индексы content.hero.slides). По просьбе заказчика 1-й и 2-й поменяны местами:
    первым показывается «Внимание – новая валюта!». Первый слайд в этом порядке получает H1. */
 const HERO_ORDER = [1, 0, 2];
@@ -441,6 +443,70 @@ ${sprite()}
   </div>
 </section>
 
+<section class="quiz section" id="brief" aria-labelledby="quiz-title">
+  <div class="wrap">
+    <div class="quiz__head">
+      <p class="quiz__eyebrow">${esc(QZ.eyebrow)}</p>
+      <h2 class="display section__title quiz__title" id="quiz-title" tabindex="-1">${esc(QZ.title)}</h2>
+      <p class="quiz__lead">${esc(QZ.lead)}</p>
+    </div>
+    <form class="form quiz__box" id="brief-form" novalidate data-form="brief" data-quiz aria-labelledby="quiz-title">
+      <div class="quiz__steps" data-quiz-steps>
+      ${QZ.steps
+        .map(
+          (st, i) => `<fieldset class="quiz__step${i === 0 ? ' is-active' : ''}" data-step="${i}">
+        <legend class="quiz__q"><span class="quiz__qn">${esc(QZ.step_label)} ${i + 1}</span>${esc(st.question)}</legend>
+        <div class="quiz__opts">${st.options
+          .map(
+            (o, j) =>
+              `<label class="quiz__opt"><input type="radio" name="q${i + 1}" value="${attr(o)}"${st.packages ? ` data-package="${st.packages[j]}"` : ''}><span class="quiz__opt-t">${esc(o)}</span><svg class="quiz__opt-bolt" viewBox="0 0 2000 1278.16" aria-hidden="true" focusable="false"><use href="#kb-bolt"/></svg></label>`
+          )
+          .join('')}</div>
+      </fieldset>`
+        )
+        .join('\n      ')}
+      <div class="quiz__step quiz__final" data-step="${QZ.steps.length}">
+        <div class="quiz__result" data-quiz-result aria-live="polite">
+          <p class="quiz__rt">${esc(QZ.result_title)}</p>
+          ${S.packages
+            .map(
+              (p, i) => `<div class="quiz__pkg" data-pkg="${p.id}"${i ? ' hidden' : ''}>
+            <p class="quiz__pkg-title display">${esc(p.title.replace(/^Пакет \d+\s*/, ''))}</p>
+            <p class="quiz__pkg-meta"><span>Формат: <b>${esc(p.format)}</b></span><span>Срок: <b>${p.days} дней</b></span><span>Цена: <b>${esc(priceByIndex[i])}</b></span></p>
+            <a class="quiz__more" href="#pkg-${p.id}">${esc(QZ.result_link)}</a>
+          </div>`
+            )
+            .join('\n          ')}
+          <input type="hidden" name="package" value="">
+          <button class="quiz__restart" type="button" data-quiz-restart>${esc(QZ.restart)}</button>
+        </div>
+        <div class="quiz__contact">
+          <p class="quiz__ct">${esc(QZ.contact_title)}</p>
+          <div class="field">
+            <label class="field__label" for="bf-name">${esc(QZ.labels.name)}</label>
+            <input class="field__input" id="bf-name" name="name" type="text" autocomplete="name" required aria-describedby="bf-name-err">
+            <p class="field__error" id="bf-name-err"></p>
+          </div>
+          <div class="field">
+            <label class="field__label" for="bf-contact">${esc(QZ.labels.contact)}</label>
+            <input class="field__input" id="bf-contact" name="contact" type="text" autocomplete="email" inputmode="email" required data-validate="phone-or-email" aria-describedby="bf-contact-err">
+            <p class="field__error" id="bf-contact-err"></p>
+          </div>
+          <div class="form__submit"><button class="btn btn--primary btn--wide" type="submit"><span class="btn__label">${esc(QZ.submit)}</span>${iconInline('send', 'btn__icon')}<span class="btn__arc" aria-hidden="true"></span></button></div>
+          <p class="form__status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+      </div>
+      <div class="quiz__bar">
+        <button class="quiz__back" type="button" data-quiz-back>${icon('arrow-left')}<span>${esc(QZ.back)}</span></button>
+        <p class="quiz__count" aria-live="polite"><span data-quiz-n>1</span>&nbsp;/&nbsp;${QZ.steps.length}</p>
+        <span class="quiz__ticks" aria-hidden="true">${QZ.steps.map((_, i) => `<i${i === 0 ? ' class="is-on"' : ''}></i>`).join('')}</span>
+        <button class="btn btn--primary quiz__next" type="button" data-quiz-next disabled><span class="btn__label">${esc(QZ.next)}</span>${iconInline('arrow-right', 'btn__icon')}<span class="btn__arc" aria-hidden="true"></span></button>
+      </div>
+    </form>
+  </div>
+</section>
+
 <div class="discharge" aria-hidden="true" data-cross></div>
 
 <section class="comparison section" id="comparison" aria-labelledby="comparison-title">
@@ -491,6 +557,36 @@ ${sprite()}
       ${btn(T.chat_label, { cls: 'btn--primary', ic: 'send', attrs: 'aria-haspopup="dialog" aria-controls="chat-panel" data-open-chat data-icon-anim' })}
     </div>
   </div>
+</section>
+
+<section class="cases section" id="cases" aria-labelledby="cases-title">
+  <div class="wrap cases__head">
+    <h2 class="display section__title" id="cases-title" tabindex="-1">${esc(CS.title)}</h2>
+    <p class="cases__lead">${esc(CS.lead)}</p>
+    <div class="cases__nav">
+      <button class="icon-btn" type="button" aria-label="Предыдущее дело" data-cases-prev>${icon('arrow-left')}</button>
+      <span class="cases__count" aria-hidden="true"><span data-cases-n>1</span>&nbsp;/&nbsp;${CS.items.length}</span>
+      <button class="icon-btn" type="button" aria-label="Следующее дело" data-cases-next>${icon('arrow-right')}</button>
+    </div>
+  </div>
+  <ol class="cases__track" data-cases tabindex="0" aria-label="${attr(CS.title)}">
+    ${CS.items
+      .map(
+        (c, i) => `<li class="case" data-case id="case-${c.id}">
+      <article class="case__card" aria-labelledby="case-${c.id}-t">
+        <p class="case__no">Дело №&nbsp;${String(i + 1).padStart(2, '0')}</p>
+        <span class="case__stamp" aria-hidden="true">${esc(CS.stamp)}</span>
+        <p class="case__tag">${esc(c.tag)}</p>
+        <p class="case__metric"><span class="case__big">${esc(c.metric)}</span><span class="case__cap">${esc(c.metric_caption)}</span></p>
+        <h3 class="case__title" id="case-${c.id}-t">${esc(c.title)}</h3>
+        <p class="case__teaser">${esc(c.text[0])}</p>
+        <div class="case__full">${c.text.map((t) => `<p>${esc(t)}</p>`).join('')}${c.quote ? `<blockquote class="case__quote"><p>${esc(c.quote)}</p></blockquote>` : ''}${(c.after || []).map((t) => `<p>${esc(t)}</p>`).join('')}</div>
+        ${btn(CS.read, { cls: 'btn--ghost case__open', attrs: `aria-haspopup="dialog" data-case-open="${c.id}"` })}
+      </article>
+    </li>`
+      )
+      .join('\n    ')}
+  </ol>
 </section>
 
 <section class="contact section" id="contact" aria-labelledby="contact-title">
@@ -574,6 +670,19 @@ ${sprite()}
     <a class="btn btn--primary btn--wide" href="#contact" data-to-form><span class="btn__label">Перейти к форме</span><span class="btn__arc" aria-hidden="true"></span></a>
   </div>
 </div>
+
+<dialog class="modal modal--case" id="case-dialog" aria-labelledby="case-dialog-title">
+  <div class="modal__bolt" aria-hidden="true"></div>
+  <div class="modal__head">
+    <div>
+      <p class="case-dlg__no" data-case-no></p>
+      <h2 class="modal__title display" id="case-dialog-title" data-case-title></h2>
+    </div>
+    <button class="icon-btn modal__close" type="button" aria-label="Закрыть" data-close>${icon('close')}</button>
+  </div>
+  <p class="case-dlg__metric" data-case-metric></p>
+  <div class="case-dlg__body" data-case-body></div>
+</dialog>
 
 <dialog class="modal" id="lead-dialog" aria-labelledby="lead-title">
   <form class="form modal__form" method="dialog" novalidate data-form="lead">

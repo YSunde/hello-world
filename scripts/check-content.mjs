@@ -52,6 +52,18 @@ C.services.packages.forEach((p) => {
   add('пакет', p.text);
   add('пакет', p.download_label);
 });
+// мини-бриф и кейсы (12.10)
+if (C.quiz) {
+  ['eyebrow', 'title', 'lead', 'result_title', 'result_link', 'contact_title', 'submit', 'back', 'next', 'restart'].forEach((k) => add('бриф', C.quiz[k]));
+  C.quiz.steps.forEach((st) => (add('бриф', st.question), st.options.forEach((o) => add('бриф', o))));
+}
+if (C.cases) {
+  ['title', 'lead', 'read', 'stamp'].forEach((k) => add('кейсы', C.cases[k]));
+  C.cases.items.forEach((c) => {
+    ['tag', 'title', 'metric', 'metric_caption', 'quote'].forEach((k) => add('кейс', c[k]));
+    [...c.text, ...(c.after || [])].forEach((t) => add('кейс', t));
+  });
+}
 add('таблица', C.comparison.title);
 C.comparison.columns.forEach((c) => add('таблица', c));
 C.comparison.rows.flat().forEach((c) => add('таблица', c));

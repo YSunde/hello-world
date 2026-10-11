@@ -20,7 +20,9 @@ export class Ribbon {
     this.canvas.setAttribute('aria-hidden', 'true');
     document.body.prepend(this.canvas);
     this.ctx = this.canvas.getContext('2d');
-    this.k = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2);
+    this.k = Math.min(devicePixelRatio || 1, 1.5);
+    this.vel = 0;
+    this.bandTop = null;
     this.triggers = [];
     this.taps = [];
     this.tip = null;
@@ -49,8 +51,15 @@ export class Ribbon {
     const vw = document.documentElement.clientWidth;
     this.vw = vw;
     this.vh = innerHeight;
+    // холст не закреплён на экране, а лежит на странице и прокручивается вместе с ней — без отставания
+    // на кадр; это полоса «экран + запас», которая переставляется, когда экран подходит к её краю
+    this.pad = Math.round(this.vh * 0.4);
+    this.H = this.vh + this.pad * 2;
     this.canvas.width = Math.round(vw * this.k);
-    this.canvas.height = Math.round(this.vh * this.k);
+    this.canvas.height = Math.round(this.H * this.k);
+    this.canvas.style.width = vw + 'px';
+    this.canvas.style.height = this.H + 'px';
+    this.bandTop = null;
     const mobile = vw < 768;
     const inset = mobile ? 7 : vw < 1024 ? 14 : clamp((vw - 1328) / 2 - 40, 26, 64);
     this.xL = inset;
@@ -63,6 +72,7 @@ export class Ribbon {
     if (!hero || !foot) return;
     this.start = top(hero) + (mobile ? 12 : 28);
     this.end = foot.getBoundingClientRect().bottom + sy - (mobile ? 40 : 64);
+    this.pageEnd = foot.getBoundingClientRect().bottom + sy;
     const crosses = [...document.querySelectorAll('[data-cross]')].map((el) => {
       const r = el.getBoundingClientRect();
       return { y0: r.top + sy + r.height * 0.12, y1: r.top + sy + r.height * 0.88, el };
@@ -213,8 +223,21 @@ export class Ribbon {
       this.tip = this.start + (target - this.start) * (1 - Math.pow(1 - p, 4));
       if (p >= 1) this.intro = 0;
     } else {
-      this.tip += (target - this.tip) * (1 - Math.pow(0.72, dt / 16.67));
-      if (Math.abs(target - this.tip) < 0.3) this.tip = target;
+      // критически задемпфированная пружина: плавный разгон и торможение, без рывков и «отскока»
+      const d = target - this.tip;
+      if (Math.abs(d) > vh * 2.5) {
+        // прыжок по ссылке меню: не ползти через полстраницы
+        this.tip = target - Math.sign(d) * vh;
+        this.vel = 0;
+      }
+      const W = 15;
+      const t = dt / 1000;
+      this.vel += (W * W * (target - this.tip) - 2 * W * this.vel) * t;
+      this.tip += this.vel * t;
+      if (Math.abs(target - this.tip) < 0.3 && Math.abs(this.vel) < 3) {
+        this.tip = target;
+        this.vel = 0;
+      }
     }
     this.events(now);
     this.draw(now, sy);
@@ -262,12 +285,18 @@ export class Ribbon {
 
   draw(now, sy) {
     const { ctx, k } = this;
+    // полоса переставляется, только когда экран подходит к её краю
+    if (this.bandTop == null || sy < this.bandTop + 24 || sy + this.vh > this.bandTop + this.H - 24) {
+      this.bandTop = Math.round(clamp(sy - this.pad, 0, Math.max(0, (this.pageEnd || 0) - this.H)));
+      this.canvas.style.transform = `translate3d(0, ${this.bandTop}px, 0)`;
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.setTransform(k, 0, 0, k, 0, -sy * k);
-    const top = Math.max(this.start, sy - 60);
-    const bot = Math.min(this.tip, sy + this.vh + 60);
-    const flick = this.reduced ? 1 : 0.86 + Math.random() * 0.14;
+    ctx.setTransform(k, 0, 0, k, 0, -this.bandTop * k);
+    const top = Math.max(this.start, this.bandTop);
+    const bot = Math.min(this.tip, this.bandTop + this.H);
+    // «живое» мерцание — плавное, без случайного скачка на каждом кадре
+    const flick = this.reduced ? 1 : 0.9 + 0.1 * (0.5 + 0.5 * Math.sin(now * 0.011) * Math.sin(now * 0.0047 + 1.3));
     if (bot > top) {
       const i0 = Math.max(0, this.idx(top) - 1);
       const i1 = this.idx(bot);
@@ -344,7 +373,7 @@ export class Ribbon {
         if (q > 1) this.pulseT = now + 2600 + Math.random() * 2000;
         else {
           const py = this.tip - 700 * (1 - q);
-          if (py > Math.max(this.start, sy - 40)) {
+          if (py > Math.max(this.start, this.bandTop)) {
             const a = this.idx(py - 40);
             const b = this.idx(py);
             const pp = new Path2D();
@@ -359,7 +388,7 @@ export class Ribbon {
 
   /* точка-«заземление» в конце ленты */
   endDot(sy) {
-    if (this.tip < this.end - 1 || this.end < sy - 30 || this.end > sy + this.vh + 30) return;
+    if (this.tip < this.end - 1 || this.end < this.bandTop - 30 || this.end > this.bandTop + this.H + 30) return;
     const [x, y] = this.pointAt(this.end);
     const g = this.ctx.createRadialGradient(x, y, 0, x, y, 16);
     g.addColorStop(0, 'rgba(255,255,255,1)');

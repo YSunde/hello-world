@@ -22,7 +22,8 @@
   "endpoints": {
     "lead": null,
     "contact": null,
-    "checklist": null
+    "checklist": null,
+    "brief": null
   },
   "chat": {
     "provider": null
