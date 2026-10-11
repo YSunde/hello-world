@@ -332,7 +332,7 @@ ${sprite()}
       </div>
     </div>
     <div class="hero__visual">
-      <div class="hero__person" data-hero-person>${who('hero', '13-team-1', { eager: true, eyes: false, sizes: '(min-width: 900px) 40vw, 86vw', alt: IMG['13-team-1'].alt })}</div>
+      <div class="hero__person" data-hero-person>${who('hero', '13-team-1', { eager: true, sizes: '(min-width: 900px) 40vw, 86vw', alt: IMG['13-team-1'].alt })}</div>
     </div>
   </div>
 </section>
@@ -403,7 +403,7 @@ ${sprite()}
           ${S.intro_words.map((w, i) => `<li class="drift__w drift__w--${i}" style="--i:${i}"><span>${esc(w)}</span></li>`).join('')}
         </ul>
       </div>
-      <div class="services__presenter">${who('services', '13-team-2', { imgCls: 'services__person', sizes: '(min-width: 1024px) 28vw, 60vw', extra: doodle('present'), slide: 'right' })}</div>
+      <div class="services__presenter">${who('services', '13-team-3', { imgCls: 'services__person', sizes: '(min-width: 1024px) 28vw, 60vw', extra: doodle('present'), slide: 'right' })}</div>
     </div>
     <div class="packages-wrap">
     <ol class="packages" data-packages>
@@ -446,7 +446,7 @@ ${sprite()}
 <section class="comparison section" id="comparison" aria-labelledby="comparison-title">
   <div class="wrap">
     <div class="comparison__intro">
-      <div class="comparison__presenter">${who('comparison', '13-team-3', { imgCls: 'comparison__person', sizes: '(min-width: 1024px) 22vw, 40vw', extra: doodle('point'), slide: 'left' })}</div>
+      <div class="comparison__presenter">${who('comparison', '13-team-2', { imgCls: 'comparison__person', sizes: '(min-width: 1024px) 22vw, 40vw', extra: doodle('point'), slide: 'left' })}</div>
       <h2 class="display section__title comparison__title" id="comparison-title">${esc(T.title)}</h2>
     </div>
     <div class="cmp" data-cmp>

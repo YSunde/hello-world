@@ -2160,24 +2160,21 @@ button {
 }
 
 /* =========================================================
-   REDUCED MOTION
+   СПОКОЙНЫЙ РЕЖИМ
+   Эффекты включены всегда. Полностью статичная страница — только по адресу с ?calm
+   (класс .calm). Системная «уменьшить движение» убирает лишь параллакс, тряску и вспышки (JS).
    ========================================================= */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-delay: 0ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
-  }
-  .placard {
-    transform: none !important;
-  }
-  .btn__arc {
-    display: none;
-  }
+.calm *,
+.calm *::before,
+.calm *::after {
+  animation-duration: 0.001ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+.calm .btn__arc {
+  display: none;
 }
 
 /* отладочная сетка: ?grid */
@@ -2357,8 +2354,10 @@ main,
     background: var(--red);
   }
 }
+/* иконка слева: отступы зеркальны обычной капсуле — у иконки 6 px, у текста справа 22 px */
 .header__call {
-  padding: 0 6px 0 18px;
+  padding: 0 22px 0 6px;
+  gap: 12px;
   min-height: 52px;
 }
 .header__call .btn__icon {
@@ -2846,13 +2845,11 @@ main,
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .js .who[data-slide-from]:not(.is-on) {
-    transform: none;
-  }
-  .who__glow {
-    opacity: 1;
-  }
+.calm .who[data-slide-from]:not(.is-on) {
+  transform: none;
+}
+.calm .who__glow {
+  opacity: 1;
 }
 .hero__slide.is-entering .hero__title {
   animation: none;
@@ -3143,14 +3140,12 @@ main,
   transform: rotate(-1.2deg) scaleX(0);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .drift__w span {
-    animation: none;
-  }
-  .js .drift:not(.is-in) .drift__w {
-    opacity: 1;
-    transform: none;
-  }
+.calm .drift__w span {
+  animation: none;
+}
+.calm .drift:not(.is-in) .drift__w {
+  opacity: 1;
+  transform: none;
 }
 
 /* =========================================================

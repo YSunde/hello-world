@@ -11,15 +11,53 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const CFG = JSON.parse($('#kb-config')?.textContent || '{}');
 
+/* страховка для старых браузеров: без этих API скрипт не должен падать целиком */
+const nativeAnimate = 'animate' in Element.prototype;
+if (!('IntersectionObserver' in window))
+  window.IntersectionObserver = class {
+    constructor(cb) {
+      this.cb = cb;
+    }
+    observe(el) {
+      setTimeout(() => this.cb([{ isIntersecting: true, intersectionRatio: 1, target: el }], this), 0);
+    }
+    unobserve() {}
+    disconnect() {}
+  };
+if (!('ResizeObserver' in window))
+  window.ResizeObserver = class {
+    constructor(cb) {
+      this.cb = cb;
+    }
+    observe() {
+      addEventListener('resize', () => this.cb([], this));
+    }
+    unobserve() {}
+    disconnect() {}
+  };
+if (!window.queueMicrotask) window.queueMicrotask = (f) => Promise.resolve().then(f);
+if (!nativeAnimate)
+  Element.prototype.animate = function () {
+    const a = { cancel() {}, finish() {}, play() {}, pause() {}, finished: Promise.resolve(), onfinish: null };
+    setTimeout(() => a.onfinish?.(), 0);
+    return a;
+  };
+
 const mqReduce = matchMedia('(prefers-reduced-motion: reduce)');
 const mqHover = matchMedia('(hover: hover) and (pointer: fine)');
 const mqDesk = matchMedia('(min-width: 900px)');
-const reduce = () => mqReduce.matches;
+/* Эффекты включены всегда (просьба заказчика): молнии, лазеры из глаз, въезд людей, автолистание.
+   Полностью статичная страница — только по адресу с ?calm.
+   Системная настройка «уменьшить движение» убирает лишь параллакс, тряску и вспышки на весь экран. */
+const CALM = /[?&]calm\b/.test(location.search);
+if (CALM) doc.classList.add('calm');
+const reduce = () => CALM;
+const gentle = () => CALM || mqReduce.matches;
 const touch = () => !mqHover.matches;
 
 if (/[?&]grid\b/.test(location.search)) doc.classList.add('show-grid');
 
-const scrollToEl = (el) => el.scrollIntoView({ behavior: reduce() ? 'auto' : 'smooth', block: 'start' });
+const scrollToEl = (el) => el.scrollIntoView({ behavior: gentle() ? 'auto' : 'smooth', block: 'start' });
 
 /* ---------- иконки: короткая анимация при каждом появлении (и при прокрутке вниз, и вверх) ---------- */
 function playIcon(svg) {
@@ -193,7 +231,7 @@ function boltScrub(f, el, { start = 0.95, end = 0.42, from = 0, to = 1, flash = 
       f.setReveal(r);
     } else if (f._armed) {
       f._armed = false;
-      f.strike({ from: Math.min(f.reveal, 0.985), to: 1, leader: 70, flash: flash && !touch() });
+      f.strike({ from: Math.min(f.reveal, 0.985), to: 1, leader: 70, flash: flash && !touch() && !gentle() });
     }
   });
 }
@@ -224,12 +262,24 @@ const measureHero = () => {
   heroTop = r.top + scrollY;
   heroH = r.height;
 };
-const heroLinked = () => mqDesk.matches && !reduce();
+const heroLinked = () => mqDesk.matches && !gentle();
 function heroUpdate() {
   const p = Math.min(1, Math.max(0, (scrollY - heroTop + (header?.offsetHeight || 0)) / Math.max(1, 0.8 * heroH)));
   if (heroPerson) heroPerson.style.transform = heroLinked() && p > 0 ? `translate3d(0, ${(-16 * p).toFixed(2)}px, 0)` : '';
   const copy = $('.hero__copy');
-  if (copy && !reduce()) copy.style.transform = scrollY > 0 ? `translate3d(0, ${(Math.min(scrollY, heroH) * 0.08).toFixed(1)}px, 0)` : '';
+  if (copy && !gentle()) copy.style.transform = scrollY > 0 ? `translate3d(0, ${(Math.min(scrollY, heroH) * 0.08).toFixed(1)}px, 0)` : '';
+}
+/* лазеры из глаз человека на баннере в заголовок смысла; контур вспыхивает, как от разряда */
+function heroZap(target, delay = 0) {
+  const w = $('[data-who="hero"]');
+  if (!w || !target || reduce()) return;
+  setTimeout(() => {
+    w.querySelector('.who__glow')?.animate(
+      [{ opacity: 0.8 }, { opacity: 1, filter: 'brightness(1.6)', offset: 0.15 }, { opacity: 0.35, offset: 0.3 }, { opacity: 1, offset: 0.45 }, { opacity: 0.8 }],
+      { duration: 700, easing: 'steps(1, end)' }
+    );
+    fireBeams(w, target);
+  }, delay);
 }
 if (hero) {
   measureHero();
@@ -433,6 +483,7 @@ function setSlide(i) {
       [{ transform: `translateY(${105 * dir}%)` }, { transform: `translateY(${-6 * dir}%)`, offset: 0.78 }, { transform: 'translateY(0)' }],
       { duration: 640, easing: E }
     );
+    heroZap(next.querySelector('.roll'), 480);
   }
   queueMicrotask(() => autoSchedule?.());
   current = i;
@@ -718,6 +769,8 @@ toTop?.addEventListener('click', () => {
    ========================================================= */
 const storm = new Storm();
 storm.enabled = !reduce();
+storm.gentle = gentle();
+mqReduce.addEventListener?.('change', () => (storm.gentle = gentle()));
 const pageXY = (r, fx = 0.5, fy = 0.5) => ({ x: r.left + scrollX + r.width * fx, y: r.top + scrollY + r.height * fy });
 
 /* молнии из глаз персонажа в заголовок: зубчатые лучи, заголовок вспыхивает, на цели — искры */
@@ -822,6 +875,8 @@ const measureAll = () => ribbon.measure();
 (document.fonts?.ready || Promise.resolve()).then(() => {
   measureAll();
   setTimeout(measureAll, 600);
+  // баннер: первый залп лазеров из глаз в заголовок
+  heroZap($('.hero__slide.is-active .roll'), 1500);
 });
 addEventListener('load', measureAll);
 addEventListener('scroll', () => ribbon.kick(), { passive: true });
@@ -861,7 +916,7 @@ if (mq && mqTrack) {
     const third = mqTrack.scrollWidth / 3 || 1;
     const sp = reduce() ? 0 : 60 + Math.min(900, Math.abs(vel) * 0.5);
     x = (((x + dir * sp * dt) % third) + third) % third;
-    const sk = reduce() ? 0 : Math.max(-10, Math.min(10, -vel * 0.006));
+    const sk = gentle() ? 0 : Math.max(-10, Math.min(10, -vel * 0.006));
     skew += (sk - skew) * 0.15;
     mqTrack.style.transform = `translate3d(${(-x).toFixed(1)}px,0,0) skewX(${skew.toFixed(2)}deg)`;
     mq.classList.toggle('is-fast', Math.abs(vel) > 1200);
@@ -879,7 +934,7 @@ if (mq && mqTrack) {
 }
 
 /* появления: заголовки вырастают из маски, остальное поднимается; по очереди */
-if (!reduce() && 'animate' in Element.prototype) {
+if (!reduce() && nativeAnimate) {
   const items = [];
   const add = (el, kind) => {
     if (!el || el.__m) return;
@@ -1114,4 +1169,3 @@ header?.classList.toggle('is-scrolled', scrollY > 24);
 toTopUpdate();
 scrubUpdate(true);
 addEventListener('resize', () => scrubUpdate(true));
-mqReduce.addEventListener?.('change', () => fields.forEach((f) => f.settle(f.reveal || 1)));

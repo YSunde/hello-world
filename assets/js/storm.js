@@ -181,6 +181,7 @@ export class Storm {
     this.raf = 0;
     this.seed = 1;
     this.enabled = true;
+    this.gentle = false;
     this.now = () => performance.now();
     this.resize = this.resize.bind(this);
     addEventListener('resize', this.resize);
@@ -228,8 +229,9 @@ export class Storm {
     const iy = o.by;
     // последствия — в момент обратного удара
     e.after = () => {
-      if (o.flash) this.flash(o.flash);
-      if (o.shake) shake(o.shake, o.shakeAmp ?? 5);
+      // «уменьшить движение» в системе: без вспышки на весь экран и без тряски, сам удар остаётся
+      if (o.flash && !this.gentle) this.flash(o.flash);
+      if (o.shake && !this.gentle) shake(o.shake, o.shakeAmp ?? 5);
       if (o.scorch !== false) this.effects.push({ type: 'scorch', x: ix, y: iy, r: (o.width ?? 4) * 7 + 10, t0: this.now() });
       if (o.sparks !== 0) this.sparks(ix, iy, o.sparks ?? 26, o.sparkDir);
       if (o.smoke !== false) this.smoke(ix, iy);
