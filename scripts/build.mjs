@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { bundle } from './bundle.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
@@ -116,60 +117,32 @@ const download = (label, url, id) =>
    масштабируется вместе с картинкой. path с pathLength=1 прорисовывается один раз при появлении. */
 const star = (x, y, r) =>
   `M${x} ${y - r}C${x + r * 0.12} ${y - r * 0.12} ${x + r * 0.12} ${y - r * 0.12} ${x + r} ${y}C${x + r * 0.12} ${y + r * 0.12} ${x + r * 0.12} ${y + r * 0.12} ${x} ${y + r}C${x - r * 0.12} ${y + r * 0.12} ${x - r * 0.12} ${y + r * 0.12} ${x - r} ${y}C${x - r * 0.12} ${y - r * 0.12} ${x - r * 0.12} ${y - r * 0.12} ${x} ${y - r}Z`;
-const drop = (x, y, h) => `M${x} ${y}C${x - h * 0.42} ${y + h * 0.55} ${x - h * 0.4} ${y + h} ${x} ${y + h}C${x + h * 0.4} ${y + h} ${x + h * 0.42} ${y + h * 0.55} ${x} ${y}Z`;
 const DOODLES = {
-  // табличка: красное «рукописное» подчёркивание под текстом и «та-дам» у рук
-  placard: {
-    box: [0, 0, 1024, 1536],
-    paths: [
-      { d: 'M318 990C392 974 462 1000 534 984S676 972 712 992', c: 'red', w: 2.6 },
-      { d: 'M88 742 52 716M80 792H38M88 842 52 868', w: 2 },
-      { d: 'M942 742 978 716M950 792H992M942 842 978 868', w: 2 },
-      { d: star(300, 214, 30), w: 1.8 },
-      { d: star(752, 150, 20), c: 'red', w: 1.8 },
-    ],
-  },
-  // плачущий: грозовая тучка над головой и капли
-  storm: {
-    box: [0, -340, 1024, 1876],
-    paths: [
-      {
-        d: 'M318 -118C262 -118 250 -196 316 -204 312 -276 410 -294 446 -238 478 -310 604 -300 600 -214 664 -224 690 -128 620 -118Z',
-        w: 2.4,
-        fill: true,
-      },
-      { d: 'M374 -146C392 -160 410 -160 428 -146', w: 1.8 },
-      { d: 'M386 -184h1M418 -184h1', w: 4 },
-      { d: drop(652, 286, 40), w: 1.8 },
-      { d: drop(690, 368, 30), w: 1.8 },
-    ],
-  },
-  // ведущая услуг: искры над ладонью и стрелка вниз — к тарифам
+  // команда (портреты 1024×1104, глаза на y≈500): «Услуги» — искры у головы
   present: {
-    box: [0, 0, 1024, 1536],
+    box: [0, 0, 1024, 1104],
     paths: [
-      { d: star(92, 420, 34), c: 'red', w: 2 },
-      { d: star(196, 360, 20), w: 1.8 },
-      { d: star(150, 470, 12), w: 1.6 },
-      { d: 'M120 700C52 820 34 978 84 1132', c: 'red', w: 2.6 },
-      { d: 'M48 1094 84 1134 118 1098', c: 'red', w: 2.6 },
+      { d: star(206, 250, 34), c: 'red', w: 2 },
+      { d: star(292, 112, 18), w: 1.8 },
+      { d: star(870, 150, 16), c: 'red', w: 1.6 },
     ],
   },
-  // ведущий сравнения: стрелка от жеста к заголовку таблицы
+  // «Сводная»: стрелка уходит вправо за кадр — к заголовку таблицы
   point: {
-    box: [0, 0, 1700, 1536],
+    box: [0, 0, 1500, 1104],
     wide: true,
     paths: [
-      { d: 'M1036 492C1250 456 1430 640 1452 972', c: 'red', w: 2.6 },
-      { d: 'M1414 934 1454 978 1490 930', c: 'red', w: 2.6 },
+      { d: 'M960 360C1150 318 1320 452 1346 690', c: 'red', w: 2.6 },
+      { d: 'M1306 652 1348 696 1384 648', c: 'red', w: 2.6 },
     ],
   },
-  // трубка: «звонок» — дуги у уха
+  // «Контакты»: «звонок» — дуги справа от головы, за кадром портрета
   ring: {
-    box: [0, 0, 1024, 1536],
+    box: [0, 0, 1200, 1104],
+    wide: true,
     paths: [
-      { d: 'M150 300A182 182 0 0 1 214 182', c: 'red', w: 2.4 },
-      { d: 'M92 300A240 240 0 0 1 174 120', c: 'red', w: 2.4 },
+      { d: 'M1030 520A120 120 0 0 1 1030 700', c: 'red', w: 2.4 },
+      { d: 'M1088 466A196 196 0 0 1 1088 754', c: 'red', w: 2.4 },
     ],
   },
   // кресло режиссёра: «идея» над блокнотом и хлопок хлопушки
@@ -202,22 +175,24 @@ const shadow = (id, [cx, cy, rx, ry]) => {
 
 /* ---------- персонажи: красный контур + молнии из глаз (координаты глаз — в пикселях кадра) ---------- */
 const EYES = {
-  '07-hero-facts-person': [464, 268, 558, 268],
-  '10-services-presenter-person': [548, 272, 628, 272],
-  '11-comparison-presenter-person': [466, 238, 536, 230],
-  '12-contact-phone-person': [380, 256, 465, 212],
+  '13-team-1': [412, 500, 612, 500],
+  '13-team-2': [413, 488, 611, 512],
+  '13-team-3': [413, 483, 611, 517],
+  '13-team-4': [412, 502, 612, 498],
 };
-const beams = () =>
-  `<svg class="who__beams" viewBox="0 0 1024 1536" aria-hidden="true" focusable="false">${[0, 1]
+const beams = (id) =>
+  `<svg class="who__beams" viewBox="0 0 ${IMG[id].width} ${IMG[id].height}" aria-hidden="true" focusable="false">${[0, 1]
     .map(() => '<g class="beam"><polyline class="beam__glow" pathLength="1"/><polyline class="beam__body" pathLength="1"/><polyline class="beam__core" pathLength="1"/></g>')
     .join('')}</svg>`;
-const glowImg = (id) => {
+/* неоновый контур: готовый слой -glow (у портретов команды) или SVG-фильтр по альфе кадра */
+const glowImg = (id, eager) => {
   const i = IMG[id];
-  return `<img class="who__glow" src="assets/img/${id}-768.webp" width="${i.width}" height="${i.height}" alt="" aria-hidden="true" loading="lazy" decoding="async">`;
+  const src = i.glow ? i.glow : `assets/img/${id}-768.webp`;
+  return `<img class="who__glow${i.glow ? ' who__glow--baked' : ''}" src="${src}" width="${i.width}" height="${i.height}" alt="" aria-hidden="true" ${eager ? 'decoding="async"' : 'loading="lazy" decoding="async"'}>`;
 };
-/* who(key, id, opts): обёртка 2:3 вокруг вырезанного персонажа */
-const who = (key, id, { cls = '', imgCls = '', eager = false, sizes, alt, extra = '', slide = '' } = {}) =>
-  `<div class="who ${cls}" data-who="${key}" data-eyes="${EYES[id].join(',')}"${slide ? ` data-slide-from="${slide}"` : ''}>${glowImg(id)}${person(id, { cls: `who__img ${imgCls}`, eager, sizes, alt })}${extra}${beams()}</div>`;
+/* who(key, id, opts): обёртка по пропорциям кадра вокруг вырезанного персонажа */
+const who = (key, id, { cls = '', imgCls = '', eager = false, sizes, alt, extra = '', slide = '', eyes = true } = {}) =>
+  `<div class="who ${cls}" data-who="${key}"${eyes ? ` data-eyes="${EYES[id].join(',')}"` : ''}${slide ? ` data-slide-from="${slide}"` : ''} style="aspect-ratio:${IMG[id].width} / ${IMG[id].height}">${glowImg(id, eager)}${person(id, { cls: `who__img ${imgCls}`, eager, sizes, alt })}${extra}${eyes ? beams(id) : ''}</div>`;
 
 /* ---------- данные ---------- */
 const H = C.hero;
@@ -276,9 +251,8 @@ const html = `<!doctype html>
 <meta name="description" content="${attr(H.lead)}">
 <meta name="theme-color" content="#F5F4F0">
 <link rel="icon" href="assets/brand/icon.svg" type="image/svg+xml">
-<link rel="preload" href="assets/fonts/sofia-sans-xcond-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/manrope-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" as="image" href="assets/img/07-hero-facts-person-768.webp" imagesrcset="assets/img/07-hero-facts-person-768.webp 768w, assets/img/07-hero-facts-person.webp 1024w" imagesizes="(min-width: 1024px) 34vw, 70vw" fetchpriority="high">
+<link rel="preload" as="image" href="assets/img/13-team-1-768.webp" imagesrcset="assets/img/13-team-1-768.webp 768w, assets/img/13-team-1.webp 1024w" imagesizes="(min-width: 900px) 40vw, 86vw" fetchpriority="high">
+<link rel="stylesheet" href="assets/css/fonts.css?v=${VERSION}">
 <link rel="stylesheet" href="assets/css/main.css?v=${VERSION}">
 <script>document.documentElement.className='js';</script>
 <script type="application/json" id="kb-talk">${JSON.stringify([T.chat_label, O.chat.title]).replace(/</g, '\\u003c')}</script>
@@ -287,7 +261,7 @@ const html = `<!doctype html>
   endpoints: CFG.endpoints,
   chat: CFG.chat,
 }).replace(/</g, '\\u003c')}</script>
-<script type="module" src="assets/js/main.js?v=${VERSION}"></script>
+<script src="assets/js/site.js?v=${VERSION}" defer></script>
 </head>
 <body>
 ${sprite()}
@@ -359,14 +333,7 @@ ${sprite()}
       </div>
     </div>
     <div class="hero__visual">
-      <div class="bolt-field hero__bolt" data-bolt="hero" aria-hidden="true"></div>
-      ${who('hero', '07-hero-facts-person', {
-        cls: 'placard',
-        imgCls: 'placard__img',
-        eager: true,
-        alt: 'Постановочный персонаж держит табличку',
-        extra: `<p class="placard__text"><span>${esc(H.system_line)}</span></p>${doodle('placard')}`,
-      }).replace('data-who="hero"', 'data-who="hero" data-placard')}
+      <div class="hero__person" data-hero-person>${who('hero', '13-team-1', { eager: true, eyes: false, sizes: '(min-width: 900px) 40vw, 86vw', alt: IMG['13-team-1'].alt })}</div>
     </div>
   </div>
 </section>
@@ -437,7 +404,7 @@ ${sprite()}
           ${S.intro_words.map((w, i) => `<li class="drift__w drift__w--${i}" style="--i:${i}"><span>${esc(w)}</span></li>`).join('')}
         </ul>
       </div>
-      <div class="services__presenter">${who('services', '10-services-presenter-person', { imgCls: 'services__person', sizes: '(min-width: 1024px) 26vw, 60vw', extra: doodle('present'), slide: 'right' })}</div>
+      <div class="services__presenter">${who('services', '13-team-2', { imgCls: 'services__person', sizes: '(min-width: 1024px) 28vw, 60vw', extra: doodle('present'), slide: 'right' })}</div>
     </div>
     <div class="packages-wrap">
     <ol class="packages" data-packages>
@@ -480,7 +447,7 @@ ${sprite()}
 <section class="comparison section" id="comparison" aria-labelledby="comparison-title">
   <div class="wrap">
     <div class="comparison__intro">
-      <div class="comparison__presenter">${who('comparison', '11-comparison-presenter-person', { imgCls: 'comparison__person', sizes: '(min-width: 1024px) 20vw, 40vw', extra: doodle('point'), slide: 'left' })}</div>
+      <div class="comparison__presenter">${who('comparison', '13-team-3', { imgCls: 'comparison__person', sizes: '(min-width: 1024px) 22vw, 40vw', extra: doodle('point'), slide: 'left' })}</div>
       <h2 class="display section__title comparison__title" id="comparison-title">${esc(T.title)}</h2>
     </div>
     <div class="cmp" data-cmp>
@@ -534,8 +501,7 @@ ${sprite()}
         <h2 class="display section__title contact__title" id="contact-title">${esc(K.title)}</h2>
         <div class="contact__media">
           <div class="contact__visual">
-            <div class="bolt-field contact__bolt" data-bolt="phone" aria-hidden="true"></div>
-            ${who('contact', '12-contact-phone-person', { imgCls: 'contact__person', sizes: '(min-width: 1024px) 20vw, 50vw', extra: doodle('ring'), slide: 'left' })}
+            ${who('contact', '13-team-4', { imgCls: 'contact__person', sizes: '(min-width: 1024px) 30vw, 70vw', extra: doodle('ring'), slide: 'left' })}
           </div>
           <div class="contact__lists">
             <div class="contact__group">
@@ -657,4 +623,24 @@ ${sprite()}
 `;
 
 writeFileSync(join(root, 'index.html'), html);
+// шрифты встроены в fonts.css: с диска (file://) Chrome не отдаёт woff2 по url(), и заголовки ломались бы
+const LATIN = 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD';
+const CYR = 'U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116';
+const FONTS = [
+  ['KB Display', 'sofia-sans-xcond-cyrillic', '700 1000', CYR],
+  ['KB Display', 'sofia-sans-xcond-latin', '700 1000', LATIN],
+  ['Manrope', 'manrope-cyrillic', '400 800', CYR],
+  ['Manrope', 'manrope-latin', '400 800', LATIN],
+];
+writeFileSync(
+  join(root, 'assets/css/fonts.css'),
+  '/* КБ-13 · шрифты (OFL), встроены — генерирует scripts/build.mjs из assets/fonts */\n' +
+    FONTS.map(
+      ([family, file, weight, range]) =>
+        `@font-face{font-family:'${family}';src:url(data:font/woff2;base64,${readFileSync(join(root, 'assets/fonts', file + '.woff2')).toString('base64')}) format('woff2');font-weight:${weight};font-display:swap;unicode-range:${range}}`
+    ).join('\n') +
+    '\n'
+);
+// скрипты одним классическим файлом: страница работает и с диска (file://), без сервера и интернета
+writeFileSync(join(root, 'assets/js/site.js'), bundle(join(root, 'assets/js/main.js')));
 console.log(`index.html: ${(html.length / 1024).toFixed(1)} KB`);

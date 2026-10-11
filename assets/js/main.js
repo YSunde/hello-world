@@ -213,25 +213,9 @@ function doodleScrub(svg, el, { start = 0.95, end = 0.45, span = 1 } = {}) {
   addScrub(el, start, end, (p) => drawDoodle(svg, clamp(p / span)));
 }
 
-/* Hero: разряд за человеком с табличкой; открывается при прокрутке. */
+/* Hero: человек справа слегка поднимается при прокрутке, текст уходит параллаксом. Молнии за ним нет. */
 const hero = $('#home');
-const placard = $('[data-placard]');
-const HERO_BASE = 0.42;
-const heroSeeds = [13, 29, 47];
-const heroBolt = makeField('hero', {
-  seed: heroSeeds[0],
-  waypoints: () => brandWaypoints([0.03, 0.985], [0.985, 0.02]),
-  branches: 4,
-  sub: 1,
-  twigs: 0,
-  step: 0.06,
-  jag: 0.6,
-  width: 5.4,
-  widthRef: 860,
-  reach: 0.26,
-  rest: 0.92,
-});
-let heroP = 0;
+const heroPerson = $('[data-hero-person]');
 let heroTop = 0;
 let heroH = 1;
 let heroVisible = true;
@@ -243,14 +227,11 @@ const measureHero = () => {
 const heroLinked = () => mqDesk.matches && !reduce();
 function heroUpdate() {
   const p = Math.min(1, Math.max(0, (scrollY - heroTop + (header?.offsetHeight || 0)) / Math.max(1, 0.8 * heroH)));
-  heroP = p;
-  if (heroBolt && heroIntroDone && heroLinked()) heroBolt.setReveal(HERO_BASE + (1 - HERO_BASE) * p);
-  if (placard) placard.style.transform = heroLinked() ? `translate3d(0, ${(-16 * p).toFixed(2)}px, 0)` : '';
+  if (heroPerson) heroPerson.style.transform = heroLinked() && p > 0 ? `translate3d(0, ${(-16 * p).toFixed(2)}px, 0)` : '';
   const copy = $('.hero__copy');
   if (copy && !reduce()) copy.style.transform = scrollY > 0 ? `translate3d(0, ${(Math.min(scrollY, heroH) * 0.08).toFixed(1)}px, 0)` : '';
 }
-let heroIntroDone = false;
-if (heroBolt) {
+if (hero) {
   measureHero();
   new ResizeObserver(() => {
     measureHero();
@@ -260,19 +241,6 @@ if (heroBolt) {
     heroVisible = es[0].isIntersecting;
     heroUpdate();
   }).observe(hero);
-  const intro = () => {
-    if (reduce()) {
-      heroBolt.settle(1);
-      heroIntroDone = true;
-      return;
-    }
-    const to = heroLinked() ? Math.max(HERO_BASE, HERO_BASE + (1 - HERO_BASE) * heroP) : 1;
-    heroBolt.strike({ from: 0, to, leader: 220, flash: !touch() }).then(() => {
-      heroIntroDone = true;
-      heroUpdate();
-    });
-  };
-  (document.fonts?.ready || Promise.resolve()).then(() => setTimeout(intro, 260));
 }
 
 let ticking = false;
@@ -400,21 +368,6 @@ boltScrub(cables, cables?.host, { start: 0.9, end: 0.45, flash: false });
 /* Рисунки поверх изображений: прорисовываются по прокрутке и стираются при прокрутке назад. */
 $$('[data-doodle]:not(.doodle--storm)').forEach((svg) => doodleScrub(svg, svg.parentElement, { start: 0.98, end: 0.5 }));
 
-/* Контакты: разряд от красной трубки в свободное поле. */
-const phoneBolt = makeField('phone', {
-  seed: 23,
-  waypoints: () => brandWaypoints([0.12, 0.86], [0.98, 0.04]),
-  branches: 3,
-  sub: 1,
-  twigs: 0,
-  step: 0.08,
-  jag: 0.6,
-  width: 3.2,
-  widthRef: 300,
-  reach: 0.26,
-  rest: 0.9,
-});
-boltScrub(phoneBolt, $('.contact__visual'), { start: 1, end: 0.45 });
 
 /* Услуги: линия-заряд связывает три уровня; номера «заряжаются», когда фронт до них доходит. */
 const pkgWrap = $('.packages-wrap');
@@ -455,10 +408,11 @@ const slides = $$('[data-slide]');
 const counter = $('[data-current]');
 const ticks = $$('.slider-ctrl__ticks i');
 let current = 0;
-function setSlide(i, { strike = true } = {}) {
+function setSlide(i) {
   const n = slides.length;
   i = (i + n) % n;
   if (i === current) return;
+  const dir = i > current || (current === n - 1 && i === 0) ? 1 : -1;
   // быстрые повторные переключения: недоигранные «барабаны» отменяются, текст всегда на месте
   slides.forEach((s) => s.querySelectorAll('.roll').forEach((r) => r.getAnimations?.().forEach((a) => a.cancel())));
   const prev = slides[current];
@@ -473,35 +427,17 @@ function setSlide(i, { strike = true } = {}) {
     next.classList.remove('is-entering');
     void next.offsetWidth;
     next.classList.add('is-entering');
-    const dir = i > current || (current === n - 1 && i === 0) ? 1 : -1;
     const E = 'cubic-bezier(.7,0,.2,1)';
     prev.querySelector('.roll')?.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${-105 * dir}%)` }], { duration: 420, easing: E });
     next.querySelector('.roll')?.animate(
       [{ transform: `translateY(${105 * dir}%)` }, { transform: `translateY(${-6 * dir}%)`, offset: 0.78 }, { transform: 'translateY(0)' }],
       { duration: 640, easing: E }
     );
-    setTimeout(() => fireBeams($('[data-who="hero"]'), next.querySelector('.roll')), 480);
   }
   queueMicrotask(() => autoSchedule?.());
   current = i;
   if (counter) counter.textContent = String(i + 1);
   ticks.forEach((t, k) => t.classList.toggle('is-on', k === i));
-  if (heroBolt && strike) {
-    if (reduce()) {
-      heroBolt.build(heroSeeds[i]);
-      heroBolt.settle(1);
-    } else {
-      const to = heroLinked() ? HERO_BASE + (1 - HERO_BASE) * heroP : 1;
-      heroIntroDone = false;
-      heroBolt
-        .fade(110)
-        .then(() => heroBolt.strike({ from: 0, to, leader: 170, flash: !touch(), seed: heroSeeds[i] }))
-        .then(() => {
-          heroIntroDone = true;
-          heroUpdate();
-        });
-    }
-  }
 }
 if (slider) {
   slides.forEach((s, k) => {
@@ -842,8 +778,7 @@ function fireBeams(whoEl, target, { delay = 0 } = {}) {
 
 /* въезд персонажей и вспышка заголовков — по кончику ленты */
 const whoTarget = { services: '#services-title', comparison: '#comparison-title', contact: '#contact-title' };
-const heroWho = $('[data-who="hero"]');
-heroWho?.classList.add('is-on');
+$('[data-who="hero"]')?.classList.add('is-on');
 if (reduce()) $$('[data-who]').forEach((w) => w.classList.add('is-on'));
 const zapTitle = (el) => {
   if (!el || reduce()) return;
@@ -887,8 +822,6 @@ const measureAll = () => ribbon.measure();
 (document.fonts?.ready || Promise.resolve()).then(() => {
   measureAll();
   setTimeout(measureAll, 600);
-  // герой: молния из глаз в заголовок после первого удара
-  setTimeout(() => fireBeams(heroWho, $('.hero__slide.is-active .roll')), 1700);
 });
 addEventListener('load', measureAll);
 addEventListener('scroll', () => ribbon.kick(), { passive: true });

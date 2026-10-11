@@ -4,8 +4,8 @@
  * Внутрь кладутся скрипты (собраны в один, без модулей), стили, шрифты, картинки, видео.
  * Файл открывается двойным кликом с диска (file://), без сервера и VS Code.
  *   node scripts/pack-standalone.mjs [выходной-файл]
- * Нужны: node 18+, npx (скачает esbuild), ffmpeg с libx264 — для облегчённого видео 720p
- * (без ffmpeg кладётся исходное видео).
+ * Нужен только node 18+; интернет не нужен. Если есть ffmpeg (libx264, libvpx-vp9) — видео
+ * сжимается до 720p, без ffmpeg кладётся исходное.
  */
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs';
 import { join, dirname, extname } from 'node:path';
@@ -33,17 +33,17 @@ const asset = (rel) => {
 execFileSync('node', [join(root, 'scripts/build.mjs')], { stdio: 'inherit' });
 let html = readFileSync(join(root, 'index.html'), 'utf8');
 
-// 2) скрипты: все модули → один классический скрипт (модули не грузятся по file://)
-const bundle = join(tmp, 'bundle.js');
-execFileSync('npx', ['--yes', 'esbuild@0.24.2', join(root, 'assets/js/main.js'), '--bundle', '--format=iife', '--minify', '--target=es2020', `--outfile=${bundle}`], { stdio: 'inherit' });
-const js = readFileSync(bundle, 'utf8').replace(/<\/script/gi, '<\\/script');
-html = html.replace(/<script type="module" src="assets\/js\/main\.js[^"]*"><\/script>\s*/, '');
+// 2) скрипты: уже собраны build.mjs в один классический файл (scripts/bundle.mjs)
+const js = readFileSync(join(root, 'assets/js/site.js'), 'utf8').replace(/<\/script/gi, '<\\/script');
+html = html.replace(/<script src="assets\/js\/site\.js[^"]*" defer><\/script>\s*/, '');
 html = html.replace('</body>', () => `<script>${js}</script>\n</body>`);
 
 // 3) стили со шрифтами внутри
 let css = readFileSync(join(root, 'assets/css/main.css'), 'utf8');
 css = css.replace(/url\((['"]?)\.\.\/(fonts\/[^'")]+)\1\)/g, (_, q, p) => `url(${asset('assets/' + p)})`);
 html = html.replace(/<link rel="stylesheet" href="assets\/css\/main\.css[^"]*">/, () => `<style>${css}</style>`);
+const fontsCss = readFileSync(join(root, 'assets/css/fonts.css'), 'utf8');
+html = html.replace(/<link rel="stylesheet" href="assets\/css\/fonts\.css[^"]*">/, () => `<style>${fontsCss}</style>`);
 
 // 4) лишнее для одного файла: предзагрузки
 html = html.replace(/<link rel="preload"[^>]*>\s*/g, '');

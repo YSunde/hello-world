@@ -2,7 +2,7 @@
 
 > **Основной сайт (v3 «Молния-лента»)** — ветка `claude/red-lightning-effects-design-w7gxvc`, корень https://ysunde.github.io/hello-world/. Альтернатива v2 «Гроза на бумаге» — https://ysunde.github.io/hello-world/v2/ (ветка `claude/kb13-v2-storm`).
 
-Одностраничный сайт: белое поле, крупный голос, красный разряд. Статика без сборщика и зависимостей — готова для GitHub Pages (`index.html` в корне).
+Одностраничный сайт: белое поле, крупный голос, красный разряд. Статика без зависимостей — готова для GitHub Pages (`index.html` в корне). **Работает без интернета и без сервера:** скачайте папку и откройте `index.html` двойным кликом, или возьмите один файл из [`готовое/`](готовое/).
 
 - Дизайн-система и правила эффектов — [DESIGN.md](DESIGN.md)
 - Концепт и промпт видео-визитки — [docs/VIDEO_PROMPT.md](docs/VIDEO_PROMPT.md)
@@ -13,13 +13,9 @@
 
 **Codespaces.** Открыть одной ссылкой: **https://codespaces.new/YSunde/hello-world?quickstart=1** → Create codespace (если он уже есть — откроется существующий). Через 1–2 минуты сервер запустится сам на порту 8013 и сайт откроется в новой вкладке (или нажмите «Open in Browser» во всплывающем уведомлении; либо вкладка **Ports** внизу → строка «Сайт КБ-13» → значок глобуса). Порт 8013 при старте пытается сам стать публичным. Если в колонке Visibility он всё ещё Private: Ports → правый клик по 8013 → Port Visibility → **Public**. Ссылка для отправки: правый клик по 8013 → Copy Local Address (вида `https://…-8013.app.github.dev`). Ссылка живёт, пока Codespace запущен (засыпает примерно через 30 минут без активности; снова открыть — той же ссылкой выше). Если сайт не открылся, в терминале Codespace выполните `node scripts/serve.mjs`.
 
-**На своём компьютере** (нужен Node.js 18+): в папке проекта выполнить
+**На своём компьютере — без сервера и интернета.** Скачайте проект (Code → Download ZIP), распакуйте и откройте `index.html` двойным кликом. Скрипты собраны в один обычный файл `assets/js/site.js`, шрифты встроены в `assets/css/fonts.css`, поэтому всё работает прямо с диска (`file://`). Ещё проще — один файл `готовое/KB13-v3-latest.html`, внутри которого есть всё, включая видео.
 
-```bash
-node scripts/serve.mjs
-```
-
-и открыть http://localhost:8013/. Просто двойной клик по `index.html` не подойдёт: браузер не загрузит JS-модули и шрифты с `file://`.
+Сервер нужен только для разработки (по желанию): `node scripts/serve.mjs` → http://localhost:8013/.
 
 ## Структура
 
@@ -29,17 +25,21 @@ content.ru.json          весь маркетинговый текст (из п
 site.config.json         контакты, документы, видео, адреса приёма заявок, чат
 assets/
   css/main.css           токены, сетка, все блоки, адаптив 320–1440+
+  css/fonts.css          шрифты, встроенные в CSS (генерируется)
+  js/site.js             все скрипты одним обычным файлом (генерируется из модулей ниже)
   js/lightning.js        генерация геометрии разряда
   js/storm.js            удары, искры, подпалины, вспышка
   js/ribbon.js           молния-лента через всю страницу
   js/main.js             поведение: меню, слайдер, аккордеон, окна, формы, эффекты
-  img/                   9 изображений WebP с прозрачностью + IMAGE_MAP.json
+  img/                   изображения WebP с прозрачностью + IMAGE_MAP.json (13-team-* — фото команды)
   icons/                 17 SVG-иконок, icons.json (источник), sprite.svg
   brand/                 logo.svg, icon.svg (оригиналы)
   fonts/                 Sofia Sans Extra Condensed, Manrope (OFL)
   video/                 видео-визитка MP4 + постер
 scripts/
-  build.mjs              content.ru.json + site.config.json → index.html
+  build.mjs              content.ru.json + site.config.json → index.html, site.js, fonts.css
+  bundle.mjs             сборка модулей assets/js в один site.js (без зависимостей)
+  pack-standalone.mjs    весь сайт в один HTML-файл (папка готовое/)
   check-content.mjs      сверка текста страницы с content.ru.json
   render-video.mjs       покадровый рендер видео (Playwright + ffmpeg)
   serve.mjs              локальный сервер одной командой (без зависимостей)
@@ -50,13 +50,14 @@ video/                   сцена и таймлайн видео-визитк�
 ## Команды
 
 ```bash
-node scripts/build.mjs            # собрать index.html
+node scripts/build.mjs            # собрать index.html, assets/js/site.js, assets/css/fonts.css
 node scripts/check-content.mjs    # проверить, что все строки и цены на месте
 node scripts/serve.mjs            # посмотреть локально: http://localhost:8013/
+node scripts/pack-standalone.mjs готовое/KB13-v3-latest.html   # один файл (только node; ffmpeg — по желанию, для сжатия видео)
 node scripts/render-video.mjs     # пересобрать видео (нужны playwright и ffmpeg с libx264/libwebp)
 ```
 
-Правки текста — только в `content.ru.json`, данных интеграций — только в `site.config.json`; затем `node scripts/build.mjs`.
+Правки текста — только в `content.ru.json`, данных интеграций — только в `site.config.json`; затем `node scripts/build.mjs`. Все скрипты сборки работают без интернета (нужен только Node.js 18+).
 
 ## Что ещё не подключено (честные состояния на сайте)
 
@@ -78,7 +79,7 @@ node scripts/render-video.mjs     # пересобрать видео (нужн�
 
 ## Изображения
 
-Все персонажи и предметы — постановочные сгенерированные кадры, не сотрудники и не кейсы бюро. У предметных кадров фон удалён (rembg / isnet-general-use), результат проверен вручную; кадрирование совпадает с исходниками, поэтому координаты из `IMAGE_MAP.json` действуют.
+Люди на сайте — фото команды заказчика (`13-team-1…4`: вырезка фона, ч/б, растворённые срезы кадра, красный контур отдельным слоем `-glow`). Предметы в пакетах — постановочные сгенерированные кадры, не кейсы бюро. Старые постановочные персонажи остались только в исходнике видео-визитки (`video/img`). У предметных кадров фон удалён (rembg / isnet-general-use), результат проверен вручную; кадрирование совпадает с исходниками, поэтому координаты из `IMAGE_MAP.json` действуют.
 
 ## Проверки, выполненные перед выкладкой
 

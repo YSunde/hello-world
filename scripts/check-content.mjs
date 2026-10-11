@@ -32,7 +32,7 @@ C.navigation.items.forEach((n) => add('навигация', n.label));
 add('навигация', C.navigation.phone_label);
 add('hero', C.hero.title);
 add('hero', C.hero.lead);
-add('hero', C.hero.system_line);
+// hero.system_line жил на табличке; табличку убрали по просьбе заказчика (11.10) — на странице его нет
 add('hero', C.hero.cta);
 C.hero.topics.forEach((t) => add('hero', t));
 C.hero.slides.slice(1).forEach((s) => (add('слайд', s.title), add('слайд', s.text), add('слайд', s.support)));

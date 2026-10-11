@@ -3,36 +3,7 @@
    Все цвета, размеры и отступы — из токенов :root.
    ========================================================= */
 
-@font-face {
-  font-family: 'KB Display';
-  src: url('../fonts/sofia-sans-xcond-cyrillic.woff2') format('woff2');
-  font-weight: 700 1000;
-  font-display: swap;
-  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
-}
-@font-face {
-  font-family: 'KB Display';
-  src: url('../fonts/sofia-sans-xcond-latin.woff2') format('woff2');
-  font-weight: 700 1000;
-  font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
-    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Manrope';
-  src: url('../fonts/manrope-cyrillic.woff2') format('woff2');
-  font-weight: 400 800;
-  font-display: swap;
-  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
-}
-@font-face {
-  font-family: 'Manrope';
-  src: url('../fonts/manrope-latin.woff2') format('woff2');
-  font-weight: 400 800;
-  font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
-    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
+/* шрифты — в assets/css/fonts.css (встроены, чтобы работали и при открытии с диска) */
 /* метрический резерв на время загрузки */
 @font-face {
   font-family: 'KB Display Fallback';
@@ -3369,4 +3340,54 @@ main,
   .comparison__presenter {
     max-width: 280px;
   }
+}
+
+/* =========================================================
+   Правка 11.10: команда вместо постановочных персонажей
+   ========================================================= */
+/* hero: один человек справа — без таблички, текста и молнии */
+.hero__person {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 380px);
+  will-change: transform;
+}
+.hero__person .who {
+  width: 100%;
+}
+@media (min-width: 900px) {
+  .hero__person {
+    width: min(100%, 620px);
+    margin-right: -3%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero__person {
+    transform: none !important;
+  }
+}
+/* контур портретов уже отрисован отдельным слоем */
+.who__glow--baked {
+  filter: none;
+}
+/* портреты 1024×1104: высота по обёртке, пропорции задаёт сама обёртка */
+.services__person,
+.comparison__person,
+.contact__person {
+  aspect-ratio: auto;
+  height: 100%;
+}
+.contact__visual {
+  max-width: 460px;
+}
+/* полоса под последним пакетом убрана */
+.pkg:last-child {
+  border-bottom: 0;
+}
+/* стрелка «Сводной» уходит за кадр вправо (1500 из 1024), «звонок» у контактов — 1200 из 1024 */
+.doodle--point {
+  width: 146.5%;
+}
+.doodle--ring {
+  width: 117.2%;
 }
