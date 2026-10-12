@@ -118,22 +118,39 @@ logoLink?.addEventListener('pointerenter', () => {
   logoLink.classList.add('is-zap');
 });
 
-// подсветка текущего раздела
+// подсветка текущего раздела: пункты берутся из самого меню; раздел без своего пункта
+// (мини-бриф, сводная таблица) подсвечивает предыдущий пункт — «услуги»
 const navLinks = $$('.nav__link');
-const spy = new IntersectionObserver(
-  (entries) => {
-    for (const e of entries) {
-      if (!e.isIntersecting) continue;
-      const id = '#' + e.target.id;
-      navLinks.forEach((a) => a.setAttribute('aria-current', String(a.getAttribute('href') === id)));
-    }
-  },
-  { rootMargin: '-45% 0px -50% 0px' }
-);
-['home', 'about', 'questions', 'services', 'contact'].forEach((id) => {
-  const el = document.getElementById(id);
-  if (el) spy.observe(el);
+const navIds = new Set(navLinks.map((a) => a.getAttribute('href')));
+const navOf = new Map();
+let lastNav = '#home';
+$$('main > section[id]').forEach((sec) => {
+  if (navIds.has('#' + sec.id)) lastNav = '#' + sec.id;
+  navOf.set(sec, lastNav);
 });
+// раз в кадр при прокрутке: какой раздел под серединой экрана (не по очереди событий
+// IntersectionObserver — при быстрой прокрутке они приходят пачкой, и подсветка залипала)
+let spyCur = '';
+let spyRaf = 0;
+const spyUpdate = () => {
+  spyRaf = 0;
+  const mid = innerHeight * 0.475;
+  for (const [sec, id] of navOf) {
+    const r = sec.getBoundingClientRect();
+    if (r.top <= mid && r.bottom > mid) {
+      if (id !== spyCur) {
+        spyCur = id;
+        navLinks.forEach((a) => a.setAttribute('aria-current', String(a.getAttribute('href') === id)));
+      }
+      return;
+    }
+  }
+};
+const spyKick = () => spyRaf || (spyRaf = requestAnimationFrame(spyUpdate));
+addEventListener('scroll', spyKick, { passive: true });
+addEventListener('resize', spyKick);
+addEventListener('load', spyKick);
+spyKick();
 
 /* ---------- мобильное меню ---------- */
 const menuBtn = $('[data-menu-toggle]');
