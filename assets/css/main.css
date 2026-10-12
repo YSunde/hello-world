@@ -3347,16 +3347,17 @@ main,
 .hero__person {
   position: relative;
   z-index: 1;
-  width: min(100%, 380px);
+  width: min(100%, 360px);
   will-change: transform;
 }
 .hero__person .who {
   width: 100%;
 }
+/* в полный рост: фигура чуть шире колонки и стоит на нижней кромке баннера */
 @media (min-width: 900px) {
   .hero__person {
-    width: min(100%, 620px);
-    margin-right: -3%;
+    width: min(112%, 620px);
+    margin-right: -6%;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -4029,4 +4030,38 @@ main,
 }
 .hero__title .roll {
   will-change: auto;
+}
+
+/* =========================================================
+   Правка 12.10 (5): фото заказчика в полный рост и самолётик «Разбора полётов»
+   ========================================================= */
+/* самолётик — целиком, без обрезки и маски прежнего кадра со столом */
+.pkg__photo--consultation {
+  --crop-top: 0;
+  overflow: visible;
+}
+.pkg__photo--consultation .pkg__frame {
+  aspect-ratio: 1536 / 778;
+}
+.pkg__photo--consultation img {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+/* лёгкое парение самолётика */
+@media (prefers-reduced-motion: no-preference) {
+  .js .pkg__photo--consultation img {
+    animation: plane-float 5.6s ease-in-out infinite;
+  }
+}
+.calm .pkg__photo--consultation img {
+  animation: none;
+}
+@keyframes plane-float {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(1.2%, -3%) rotate(-1.2deg);
+  }
 }

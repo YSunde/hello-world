@@ -383,19 +383,6 @@ const painVisual = $('.questions__visual');
 doodleScrub($('.doodle--storm'), painVisual, { start: 1.05, end: 0.35, span: 0.5 });
 boltScrub(pain, painVisual, { start: 1.05, end: 0.35, from: 0.5, to: 1 });
 
-/* Услуги: «Разбор полётов» — разряд на листе заканчивается у кончика карандаша. */
-const pencil = makeField('pencil', {
-  seed: 17,
-  waypoints: () => brandWaypoints([0.2, 0.84], [0.638, 0.452]),
-  branches: 3,
-  sub: 0,
-  twigs: 0,
-  width: 2.8,
-  widthRef: 420,
-  reach: 0.22,
-  rest: 0.92,
-});
-boltScrub(pencil, pencil?.host, { start: 0.95, end: 0.4, flash: false });
 
 /* Кабели: короткая дуга между двумя адаптерами. */
 const cables = makeField('cables', {
@@ -799,6 +786,8 @@ const pageXY = (r, fx = 0.5, fy = 0.5) => ({ x: r.left + scrollX + r.width * fx,
 /* молнии из глаз персонажа в заголовок: зубчатые лучи, заголовок вспыхивает, на цели — искры */
 function fireBeams(whoEl, target, { delay = 0 } = {}) {
   if (!whoEl || !target || reduce()) return;
+  // на узком экране, где заголовок стоит над человеком, лучи прошли бы через весь текст — не стреляем
+  if (!mqDesk.matches && target.getBoundingClientRect().bottom < whoEl.getBoundingClientRect().top + 20) return;
   const svg = whoEl.querySelector('.who__beams');
   const eyes = (whoEl.dataset.eyes || '').split(',').map(Number);
   if (!svg || eyes.length < 4) return;
