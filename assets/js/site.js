@@ -1959,19 +1959,15 @@ function setSlide(i) {
   i = (i + n) % n;
   if (i === current) return;
   const dir = i > current || (current === n - 1 && i === 0) ? 1 : -1;
-  // частые нажатия (чаще чем раз в 0,7 с): слайд меняется сразу, без «барабана» и затухания —
-  // иначе каждое нажатие запускало въезд с нуля и текст всё время был полупрозрачным
+  // частые нажатия (чаще раза в 0,7 с): слайд меняется сразу, без проявления
   const now = performance.now();
   const quick = now - lastFlip < 700;
   lastFlip = now;
-  // недоигранные анимации предыдущих переключений снимаются — текст всегда на месте
+  // недоигранные проявления предыдущих переключений доводятся до конца — текст всегда на месте
   slides.forEach((s) => {
     s.classList.remove('is-entering');
-    s.querySelectorAll('.roll, .hero__lead').forEach((r) => r.getAnimations?.().forEach((a) => a.cancel()));
+    s.querySelectorAll('.hero__title, .roll, .hero__lead').forEach((r) => r.getAnimations?.().forEach((a) => a.cancel()));
   });
-  slider?.getAnimations?.().forEach((a) => a.cancel());
-  slider?.classList.remove('is-resizing');
-  const h0 = slider?.offsetHeight || 0;
   const prev = slides[current];
   prev.classList.remove('is-active');
   prev.inert = true;
@@ -1985,41 +1981,26 @@ function setSlide(i) {
   ticks.forEach((t, k) => t.classList.toggle('is-on', k === i));
   queueMicrotask(() => autoSchedule?.());
   if (reduce() || quick) return;
-  // эффекты — отдельно: если в каком-то браузере что-то из них не сработает, слайд уже переключён
+  // простое проявление: без обрезки рамкой и без отдельного слоя — заголовок не может «застрять» невидимым.
+  // Кнопки внизу не двигаются: колонка заранее держит высоту самого длинного слайда.
   try {
-    void next.offsetWidth;
-    next.classList.add('is-entering');
-    const E = 'cubic-bezier(.7,0,.2,1)';
-    next.querySelector('.roll')?.animate(
-      [{ transform: `translateY(${105 * dir}%)`, opacity: 0 }, { opacity: 1, offset: 0.28 }, { transform: `translateY(${-6 * dir}%)`, offset: 0.78 }, { transform: 'translateY(0)', opacity: 1 }],
-      { duration: 600, easing: E }
-    );
-    // высота блока плавно подстраивается под новый слайд; на время роста лишнее обрезается
-    // классом (overflow в ключевых кадрах Firefox и Safari не анимируют — текст ложился на кнопки)
-    const h1 = slider?.offsetHeight || 0;
-    if (slider && Math.abs(h1 - h0) > 2) {
-      slider.classList.add('is-resizing');
-      const a = slider.animate([{ height: h0 + 'px' }, { height: h1 + 'px' }], { duration: 460, easing: 'cubic-bezier(.3,.7,.2,1)' });
-      // событие отмены приходит позже: снимаем класс, только если это всё ещё текущая анимация
-      const done = () => slider.getAnimations?.().length || slider.classList.remove('is-resizing');
-      a.onfinish = done;
-      a.oncancel = done;
-    }
+    const E = 'cubic-bezier(.2,.8,.2,1)';
+    next.querySelector('.hero__title')?.animate([{ opacity: 0, transform: `translateX(${18 * dir}px)` }, { opacity: 1, transform: 'none' }], { duration: 420, easing: E });
+    next.querySelector('.hero__lead')?.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 110, easing: E, fill: 'backwards' });
     heroZap(next.querySelector('.roll'), 480);
   } catch {
-    next.classList.remove('is-entering');
+    /* эффекты не обязательны: слайд уже переключён */
   }
 }
 /* баннер не меняет высоту при смене смыслов: блок текста заранее занимает место самого длинного
    слайда, а запас уходит вниз, под кнопки (заголовок всегда сверху, без пустоты посередине) */
 function fitHero() {
   const copy = $('.hero__copy');
-  if (!slider || !copy) return;
-  // высота по содержимому (колонка в сетке растянута, её offsetHeight не подходит)
-  const last = copy.lastElementChild;
-  const contentH = last.getBoundingClientRect().bottom - copy.getBoundingClientRect().top + parseFloat(getComputedStyle(copy).paddingBottom);
+  const foot = $('.hero__foot');
+  if (!slider || !copy || !foot) return;
+  const cs = getComputedStyle(copy);
   const maxH = Math.max(...slides.map((s) => s.offsetHeight));
-  copy.style.minHeight = Math.ceil(contentH - slides[current].offsetHeight + maxH) + 'px';
+  copy.style.minHeight = Math.ceil(maxH + foot.offsetHeight + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) + 'px';
 }
 if (slider) {
   fitHero();
@@ -2346,6 +2327,7 @@ function fireBeams(whoEl, target, { delay = 0 } = {}) {
         });
       });
     });
+    // попадание: заголовок раскаляется красным свечением
     target.animate(
       [
         { textShadow: '0 0 0 rgba(242,13,13,0)' },
@@ -2372,7 +2354,7 @@ if (reduce()) $$('[data-who]').forEach((w) => w.classList.add('is-on'));
 const zapTitle = (el) => {
   if (!el || reduce()) return;
   el.animate(
-    [{ color: 'var(--ink)' }, { color: 'var(--red)', textShadow: '0 0 14px rgba(242,13,13,.55)', offset: 0.12 }, { color: 'var(--ink)', offset: 0.26 }, { color: 'var(--red)', offset: 0.4 }, { color: 'var(--ink)' }],
+    [{ color: '#0B0B0B' }, { color: '#F20D0D', offset: 0.12 }, { color: '#0B0B0B', offset: 0.26 }, { color: '#F20D0D', offset: 0.4 }, { color: '#0B0B0B' }],
     { duration: 520, easing: 'steps(1, end)' }
   );
 };

@@ -306,13 +306,6 @@ ${sprite()}
 <section class="hero" id="home" aria-labelledby="hero-title">
   <div class="wrap hero__grid">
     <div class="hero__copy">
-      <div class="slider-ctrl hero__nav" data-slider-ctrl>
-        <button class="icon-btn slider-ctrl__btn" type="button" aria-controls="hero-slide-1 hero-slide-2 hero-slide-3" aria-label="Предыдущий смысл" data-prev>${icon('arrow-left')}</button>
-        <p class="slider-ctrl__count" aria-live="polite"><span class="sr-only">Смысл </span><span data-current>1</span><span aria-hidden="true"> / </span><span class="sr-only"> из </span><span>${H.slides.length}</span></p>
-        <button class="icon-btn slider-ctrl__btn" type="button" aria-controls="hero-slide-1 hero-slide-2 hero-slide-3" aria-label="Следующий смысл" data-next>${icon('arrow-right')}</button>
-        <button class="icon-btn slider-ctrl__btn slider-ctrl__auto" type="button" aria-pressed="true" aria-label="Остановить автопрокрутку" data-autoplay><svg class="icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><g class="i-pause" fill="currentColor"><rect x="14" y="12" width="6" height="24" rx="1"/><rect x="28" y="12" width="6" height="24" rx="1"/></g><path class="i-play" d="M17 12 36 24 17 36Z" fill="currentColor"/></svg></button>
-        <span class="slider-ctrl__ticks" aria-hidden="true">${H.slides.map((_, i) => `<i${i === 0 ? ' class="is-on"' : ''}></i>`).join('')}</span>
-      </div>
       <div class="hero__slides" data-slider aria-roledescription="карусель" aria-label="Главные смыслы">
         ${HERO_ORDER.map((src) => H.slides[src])
           .map((s, i) => {
@@ -333,9 +326,18 @@ ${sprite()}
           })
           .join('\n        ')}
       </div>
-      <p class="hero__hint" data-hint><svg class="icon" viewBox="0 0 2000 1278.16" aria-hidden="true" focusable="false"><use href="#kb-bolt"/></svg><span class="hint--mouse">Кликните по пустому месту — ударит молния</span><span class="hint--touch">Коснитесь пустого места — ударит молния</span></p>
-      <div class="hero__actions">
-        ${btn(H.cta, { tag: 'a', href: '#contact', attrs: 'data-to-form' })}
+      <div class="hero__foot">
+        <p class="hero__hint" data-hint><svg class="icon" viewBox="0 0 2000 1278.16" aria-hidden="true" focusable="false"><use href="#kb-bolt"/></svg><span class="hint--mouse">Кликните по пустому месту — ударит молния</span><span class="hint--touch">Коснитесь пустого места — ударит молния</span></p>
+        <div class="hero__actions">
+          ${btn(H.cta, { tag: 'a', href: '#contact', attrs: 'data-to-form' })}
+          <div class="slider-ctrl" data-slider-ctrl>
+            <button class="icon-btn slider-ctrl__btn" type="button" aria-controls="hero-slide-1 hero-slide-2 hero-slide-3" aria-label="Предыдущий смысл" data-prev>${icon('arrow-left')}</button>
+            <p class="slider-ctrl__count" aria-live="polite"><span class="sr-only">Смысл </span><span data-current>1</span><span aria-hidden="true"> / </span><span class="sr-only"> из </span><span>${H.slides.length}</span></p>
+            <button class="icon-btn slider-ctrl__btn" type="button" aria-controls="hero-slide-1 hero-slide-2 hero-slide-3" aria-label="Следующий смысл" data-next>${icon('arrow-right')}</button>
+            <button class="icon-btn slider-ctrl__btn slider-ctrl__auto" type="button" aria-pressed="true" aria-label="Остановить автопрокрутку" data-autoplay><svg class="icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><g class="i-pause" fill="currentColor"><rect x="14" y="12" width="6" height="24" rx="1"/><rect x="28" y="12" width="6" height="24" rx="1"/></g><path class="i-play" d="M17 12 36 24 17 36Z" fill="currentColor"/></svg></button>
+            <span class="slider-ctrl__ticks" aria-hidden="true">${H.slides.map((_, i) => `<i${i === 0 ? ' class="is-on"' : ''}></i>`).join('')}</span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="hero__visual">

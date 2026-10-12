@@ -694,8 +694,11 @@ button {
   grid-area: 1 / 1;
   align-self: end;
 }
+/* неактивный слайд — прозрачный и без мыши (не visibility: в Chromium после смены слайда
+   наследуемое «скрыто» иногда оставалось на вложенном тексте — заголовок пропадал) */
 .js .hero__slide:not(.is-active) {
-  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 .hero__slide.is-entering .hero__title {
   animation: wipe-in 520ms var(--ease-out) both;
@@ -2730,7 +2733,7 @@ main,
 
 /* ---------- пакеты: номер загорается от отвода ленты ---------- */
 .pkg__num span {
-  transition: color 0.35s var(--ease), text-shadow 0.35s var(--ease);
+  transition: color 0.35s var(--ease);
 }
 .pkg.is-charged .pkg__num span {
   text-shadow: 0 0 28px rgba(242, 13, 13, 0.35);
@@ -3408,10 +3411,6 @@ main,
     padding-bottom: var(--s4);
   }
 }
-/* въезжающий заголовок обрезается своей рамкой в любом браузере — текст не ложится на подпись и кнопки */
-.hero__title {
-  contain: paint;
-}
 /* подзаголовок и подсказка крупнее */
 .hero__lead {
   font-size: calc(var(--t-lead) + 2px);
@@ -3983,14 +3982,6 @@ main,
 .case__teaser {
   max-height: calc(1.5em * 4);
 }
-/* пока высота блока слайдов меняется — всё, что ниже его края, обрезано (запас сверху — под Й и Ё) */
-.js .hero__slides {
-  padding-top: 28px;
-  margin-top: -28px;
-}
-.hero__slides.is-resizing {
-  overflow: hidden;
-}
 /* секция сразу за секцией (без полосы-прыжка молнии): верхний отступ втрое меньше — без «дыр» над кейсами и брифом */
 .section + .section {
   padding-top: calc(var(--section-y) * 0.35);
@@ -4002,15 +3993,6 @@ main,
 .cases__nav .icon-btn[aria-disabled='true'] {
   opacity: 0.3;
   cursor: default;
-}
-/* управление слайдером — над заголовком: стрелки не двигаются при смене слайдов */
-.hero__nav {
-  margin: 0 0 var(--s3) -10px;
-}
-@media (min-width: 900px) {
-  .hero__nav {
-    margin-bottom: var(--s4);
-  }
 }
 /* лазеры из глаз — чуть толще */
 .beam__glow {
@@ -4031,4 +4013,20 @@ main,
   .cases__track {
     cursor: grab;
   }
+}
+
+/* =========================================================
+   Правка 12.10 (4): баннер — заголовок сверху, «Свяжитесь со мной» и переключатель
+   внизу, на одном месте для всех слайдов (колонка заранее держит высоту самого
+   длинного слайда). Заголовок без обрезки и без отдельного слоя — просто проявляется.
+   ========================================================= */
+.hero__foot {
+  margin-top: auto;
+  padding-top: var(--s4);
+}
+.hero__foot .hero__hint {
+  margin-top: 0;
+}
+.hero__title .roll {
+  will-change: auto;
 }
