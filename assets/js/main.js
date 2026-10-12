@@ -269,7 +269,8 @@ function heroUpdate() {
   const p = Math.min(1, Math.max(0, (scrollY - heroTop + (header?.offsetHeight || 0)) / Math.max(1, 0.8 * heroH)));
   if (heroPerson) heroPerson.style.transform = heroLinked() && p > 0 ? `translate3d(0, ${(-16 * p).toFixed(2)}px, 0)` : '';
   const copy = $('.hero__copy');
-  if (copy && !gentle()) copy.style.transform = scrollY > 0 ? `translate3d(0, ${(Math.min(scrollY, heroH) * 0.08).toFixed(1)}px, 0)` : '';
+  // текст чуть обгоняет страницу вверх: при сдвиге вниз кнопки и переключатель уходили под ленту направлений
+  if (copy && !gentle()) copy.style.transform = scrollY > 0 ? `translate3d(0, ${(-Math.min(scrollY, heroH) * 0.05).toFixed(1)}px, 0)` : '';
 }
 /* лазеры из глаз человека на баннере в заголовок смысла; контур вспыхивает, как от разряда */
 function heroZap(target, delay = 0) {
