@@ -5,10 +5,11 @@
  * изображения — по assets/img/IMAGE_MAP.json. Результат: index.html (готов для GitHub Pages).
  *   node scripts/build.mjs
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bundle } from './bundle.mjs';
+import { createSeo } from './seo.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
@@ -259,7 +260,9 @@ if (!innOk(OP.inn) || !ogrnipOk(OP.ogrnip) || !accOk(OP.bank.bik, OP.bank.accoun
 for (const k of ['privacy', 'consent'])
   if (!JSON.stringify(L[k]).includes(OP.inn) || !JSON.stringify(L[k]).includes(OP.ogrnip))
     throw new Error(`legal.ru.json → ${k}: ИНН/ОГРНИП в тексте не совпадают с site.config.json`);
-const siteHost = LG.site_url ? LG.site_url.replace(/^https?:\/\//, '').replace(/\/$/, '') : '';
+const SITE_URL = CFG.site_url || '';
+const siteHost = SITE_URL ? SITE_URL.replace(/^https?:\/\//, '').replace(/\/$/, '') : '';
+const SEO = createSeo({ C, CFG, L });
 const pdMail = LG.pd_email ? `<a href="mailto:${attr(LG.pd_email)}">${esc(LG.pd_email)}</a>` : '';
 const postal = esc(OP.postal_address);
 const TOKENS = {
@@ -268,7 +271,7 @@ const TOKENS = {
     ? `электронная почта для обращений по вопросам обработки персональных данных: ${pdMail}`
     : 'обращения по вопросам обработки персональных данных принимаются в письменной форме по этому адресу',
   site_clause: siteHost
-    ? `Сайт КБ13 размещается по адресу: <a href="${attr(LG.site_url)}">${esc(siteHost)}</a> (далее&nbsp;— Сайт).`
+    ? `Сайт КБ13 размещается по адресу: <a href="${attr(SITE_URL)}">${esc(siteHost)}</a> (далее&nbsp;— Сайт).`
     : 'Сайт КБ13&nbsp;— сайт в&nbsp;сети «Интернет», на&nbsp;котором размещена настоящая Политика (далее&nbsp;— Сайт).',
   pd_request: pdMail
     ? `обратиться к&nbsp;Оператору по&nbsp;адресу электронной почты: ${pdMail} или направить письменное обращение по&nbsp;почтовому адресу Оператора: ${postal}.`
@@ -277,7 +280,7 @@ const TOKENS = {
     ? `направив обращение Оператору по&nbsp;адресу электронной почты: ${pdMail} или письменное обращение по&nbsp;почтовому адресу Оператора: ${postal}.`
     : `направив Оператору письменное обращение по&nbsp;почтовому адресу: ${postal}.`,
   policy_link: siteHost
-    ? ` по&nbsp;адресу: <a href="${attr(LG.site_url.replace(/\/$/, '') + '/' + DOC.privacy)}">${esc(siteHost + '/' + DOC.privacy)}</a>`
+    ? ` по&nbsp;адресу: <a href="${attr(SITE_URL.replace(/\/$/, '') + '/' + DOC.privacy)}">${esc(siteHost + '/' + DOC.privacy)}</a>`
     : `, опубликованной на&nbsp;сайте КБ13 в&nbsp;разделе «<a href="${DOC.privacy}">Политика обработки персональных данных</a>»`,
 };
 const lt = (s) =>
@@ -348,8 +351,9 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>КБ-13 — креативное бюро</title>
+<title>КБ-13 — креативное бюро: ${esc(H.topics.join(', ').toLowerCase())}</title>
 <meta name="description" content="${attr(H.lead)}">
+${SEO.indexHead({ title: `КБ-13 — креативное бюро: ${H.topics.join(', ').toLowerCase()}`, description: H.lead, esc: attr })}
 <meta name="theme-color" content="#F5F4F0">
 <link rel="icon" href="assets/brand/icon.svg" type="image/svg+xml">
 <link rel="preload" as="image" href="assets/img/13-team-1-768.webp" imagesrcset="assets/img/13-team-1-768.webp 768w, assets/img/13-team-1.webp 1024w" imagesizes="(min-width: 900px) 40vw, 86vw" fetchpriority="high">
@@ -871,7 +875,8 @@ const docPage = (key, { title, sub, rev, toc = '', body }) => `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(title)} — КБ-13</title>
 <meta name="description" content="${attr(`${title} — ${OP.short}, сайт креативного бюро КБ-13`)}">
-<meta name="theme-color" content="#F5F4F0">${siteHost ? `\n<link rel="canonical" href="${attr(LG.site_url.replace(/\/$/, '') + '/' + DOC[key])}">` : ''}
+<meta name="theme-color" content="#F5F4F0">
+${SEO.docHead({ key, file: DOC[key], title, description: `${title} — ${OP.short}, сайт креативного бюро КБ-13`, esc: attr })}
 <link rel="icon" href="assets/brand/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/css/fonts.css?v=${VERSION}">
 <link rel="stylesheet" href="assets/css/main.css?v=${VERSION}">
@@ -926,6 +931,10 @@ writeFileSync(
       ${docSections('consent', L.consent)}`,
   })
 );
+// robots.txt, llms.txt и (с доменом) sitemap.xml — из тех же данных
+const seoFiles = SEO.files({ pages: ['', DOC.privacy, DOC.consent, DOC.requisites] });
+for (const [f, body] of Object.entries(seoFiles)) writeFileSync(join(root, f), body);
+if (!seoFiles['sitemap.xml'] && existsSync(join(root, 'sitemap.xml'))) unlinkSync(join(root, 'sitemap.xml'));
 const reqRows = [
   ['Исполнитель', OP.full],
   ['ИНН', OP.inn],

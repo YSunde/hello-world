@@ -24,6 +24,7 @@ index.html               готовая страница (генерируетс
 privacy.html             Политика обработки персональных данных (генерируется)
 consent.html             Согласие на обработку персональных данных (генерируется)
 requisites.html          Реквизиты ИП (генерируется)
+robots.txt, llms.txt     для поисковиков и ИИ-ассистентов (генерируются; sitemap.xml — когда задан site_url)
 content.ru.json          весь маркетинговый текст (из прототипа, без правок)
 legal.ru.json            тексты политики и согласия (документы заказчика) + подписи баннера cookie
 site.config.json         контакты, реквизиты ИП, счётчики, документы, видео, адреса приёма заявок, чат
@@ -40,12 +41,13 @@ assets/
   js/doc-main.js         скрипт страниц документов → doc-site.js
   img/                   изображения WebP с прозрачностью + IMAGE_MAP.json (13-team-* — фото команды)
   icons/                 17 SVG-иконок, icons.json (источник), sprite.svg
-  brand/                 logo.svg, icon.svg (оригиналы)
+  brand/                 logo.svg, icon.svg (оригиналы), og.jpg — превью ссылки 1200×630
   fonts/                 Sofia Sans Extra Condensed, Manrope (OFL)
   video/                 видео-визитка MP4 + постер
 scripts/
   build.mjs              content.ru.json + site.config.json → index.html, site.js, fonts.css
   bundle.mjs             сборка модулей assets/js в один site.js (без зависимостей)
+  seo.mjs                микроразметка schema.org, Open Graph, robots.txt, sitemap.xml, llms.txt
   pack-standalone.mjs    весь сайт в один HTML-файл (папка готовое/)
   check-content.mjs      сверка текста страницы с content.ru.json и документов с legal.ru.json
   render-video.mjs       покадровый рендер видео (Playwright + ffmpeg)
@@ -80,7 +82,7 @@ node scripts/render-video.mjs     # пересобрать видео (нужн�
 | Чат | `chat.provider` | панель «чат ещё не подключён» + переход к форме |
 | Живое видео команды | `video.url / poster / title` | стоит моушн-концепт визитки |
 | E-mail для обращений по персональным данным | `legal.pd_email` | в политике и согласии — письменное обращение на почтовый адрес ИП |
-| Боевой адрес сайта | `legal.site_url` | в политике — «сайт, на котором размещена Политика» |
+| Боевой адрес сайта | `site_url` | в политике — «сайт, на котором размещена Политика»; в микроразметке ссылки относительные, нет canonical и sitemap.xml |
 | Яндекс Метрика / VK Pixel | `analytics.yandex_metrika_id / vk_pixel_id` | не ставятся; баннер cookie уже спрашивает согласие |
 | Согласие на рекламную рассылку (38-ФЗ) | `legal.mailing_consent` | не собирается: чек-лист — не подписка, так и написано у галочки |
 | Лицензированный Druk Condensed | `assets/fonts` + `main.css` | резерв Sofia Sans Extra Condensed 900 |
@@ -95,6 +97,16 @@ node scripts/render-video.mjs     # пересобрать видео (нужн�
 - **Cookie:** баннер при первом визите — «Принять все» / «Только необходимые» / «Настроить» (аналитические и маркетинговые отдельно); выбор меняется в подвале. Метрика с Вебвизором и VK Pixel подключаются только после согласия; при отзыве их cookie удаляются. Поля форм помечены `ym-disable-keys ym-hide-content` — Вебвизор не записывает их содержимое (п. 8.4 политики).
 - **Один файл (`готовое/`):** документы внутри файла — ссылка открывает документ вместо страницы, «назад» возвращает на то же место.
 - **Править тексты документов** — в `legal.ru.json` (только с юристом), затем `node scripts/build.mjs` и `node scripts/check-content.mjs`.
+
+## Микроразметка (SEO / GEO)
+
+`scripts/seo.mjs`, всё — из тех же данных, что и страница, без выдуманных полей:
+
+- **JSON-LD (schema.org)** на главной: `Organization` (КБ-13, юр. лицо — ИП, ИНН, ОГРНИП, регион, направления, каталог пакетов), `WebSite`, `WebPage`, три `Service` с `Offer` (цена в рублях, формат, срок), `FAQPage` («За и против»), `ItemList` кейсов, `VideoObject` (видео-визитка). На документах — `WebPage` / `AboutPage` (реквизиты) с датой редакции и `BreadcrumbList`.
+- **Превью ссылок:** Open Graph и Twitter Card с картинкой `assets/brand/og.jpg`; заголовок страницы с направлениями.
+- **Для ИИ-поиска (GEO):** `llms.txt` — бюро, пакеты с ценами и сроками, сводная таблица, кейсы, «За и против», документы; `robots.txt` открывает сайт всем, в том числе ИИ-краулерам.
+- **С доменом** (`site_url`): абсолютные ссылки в разметке, `canonical`, `og:url`, `sitemap.xml` и строка `Sitemap:` в robots.txt появляются сами при сборке.
+- `node scripts/check-content.mjs` проверяет разметку: валидный JSON, обязательные поля, ссылки внутри графа, цены и вопросы — те же, что на странице.
 
 ## Изображения
 

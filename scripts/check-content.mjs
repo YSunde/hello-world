@@ -6,7 +6,7 @@
  * обязательная галочка согласия в каждой форме.
  *   node scripts/check-content.mjs
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -121,6 +121,55 @@ for (const f of html.match(/<form\b[^>]*data-form="[^"]+"[\s\S]*?<\/form>/g) || 
   if (!/\brequired\b/.test(box) || /\bchecked\b/.test(box) || !/href="consent\.html"/.test(f)) missing.push(['форма ' + kind, 'нет обязательной галочки согласия со ссылкой']);
 }
 console.log(`документы и согласия: ${legalN} проверок`);
+
+// микроразметка (JSON-LD): валидный JSON, обязательные поля, ссылки @id внутри графа,
+// цены и вопросы — те же, что на странице
+let ldN = 0;
+const ldErr = (f, m) => missing.push(['микроразметка ' + f, m]);
+for (const f of ['index.html', L.privacy.file, L.consent.file, L.requisites.file]) {
+  const page = readFileSync(join(root, f), 'utf8');
+  const blocks = [...page.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
+  if (blocks.length !== 1) { ldErr(f, `блоков JSON-LD: ${blocks.length}`); continue; }
+  let data;
+  try { data = JSON.parse(blocks[0][1]); } catch (e) { ldErr(f, 'невалидный JSON: ' + e.message); continue; }
+  const g = data['@graph'] || [];
+  const ids = new Set(g.map((n) => n['@id']));
+  const byType = (t) => g.filter((n) => [].concat(n['@type']).includes(t));
+  const refs = [];
+  const walk = (o) => { if (Array.isArray(o)) o.forEach(walk); else if (o && typeof o === 'object') { if (Object.keys(o).length === 1 && o['@id']) refs.push(o['@id']); Object.values(o).forEach(walk); } };
+  walk(g);
+  refs.forEach((r) => (ldN++, !ids.has(r) && ldErr(f, 'ссылка на несуществующий узел ' + r)));
+  const need = (n, keys) => keys.forEach((k) => (ldN++, (n[k] === undefined || n[k] === '') && ldErr(f, `${n['@type']}: нет ${k}`)));
+  byType('Organization').forEach((n) => need(n, ['name', 'url', 'logo', 'legalName', 'taxID']));
+  byType('WebSite').forEach((n) => need(n, ['name', 'url', 'inLanguage']));
+  if (data['@context'] !== 'https://schema.org') ldErr(f, 'нет @context schema.org');
+  if (f === 'index.html') {
+    const svc = byType('Service');
+    if (svc.length !== C.services.packages.length) ldErr(f, `услуг в разметке ${svc.length}`);
+    C.services.packages.forEach((p, i) => {
+      ldN++;
+      const s = svc[i];
+      if (!s || s.offers?.price !== String(p.price_rub) || s.offers?.priceCurrency !== 'RUB' || !s.provider) ldErr(f, `услуга ${p.id}: цена/валюта/исполнитель`);
+      if (s && !s.description.includes(`${p.days} дней`)) ldErr(f, `услуга ${p.id}: нет срока`);
+    });
+    const faq = byType('FAQPage')[0];
+    const qs = faq?.mainEntity || [];
+    if (qs.length !== C.questions.items.length) ldErr(f, `вопросов в FAQ ${qs.length}`);
+    qs.forEach((q) => (ldN++, (!hay.includes(norm(q.name)) || !q.acceptedAnswer?.text || !hay.includes(norm(q.acceptedAnswer.text))) && ldErr(f, 'вопрос не со страницы: ' + q.name)));
+    const v = byType('VideoObject')[0];
+    if (v) need(v, ['name', 'description', 'thumbnailUrl', 'contentUrl', 'uploadDate']);
+    const list = byType('ItemList')[0];
+    ldN++;
+    if ((list?.itemListElement || []).length !== C.cases.items.length) ldErr(f, 'кейсов в разметке не столько же, сколько на странице');
+    ['og:title', 'og:description', 'og:image', 'twitter:card'].forEach((k) => (ldN++, !page.includes(`"${k}"`) && ldErr(f, 'нет ' + k)));
+  } else {
+    const bc = byType('BreadcrumbList')[0];
+    ldN++;
+    if (!bc || bc.itemListElement?.length !== 2 || bc.itemListElement.some((x, i) => x.position !== i + 1 || !x.name || !x.item)) ldErr(f, 'хлебные крошки');
+  }
+}
+for (const f of ['robots.txt', 'llms.txt']) (ldN++, !existsSync(join(root, f)) && ldErr(f, 'нет файла'));
+console.log(`микроразметка: ${ldN} проверок`);
 console.log(`проверено строк: ${must.length}`);
 if (missing.length) {
   console.log('НЕ НАЙДЕНО:');
