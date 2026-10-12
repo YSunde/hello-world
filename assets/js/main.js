@@ -5,6 +5,8 @@
 import { LightningField, brandWaypoints, arcPath } from './lightning.js';
 import { Storm } from './storm.js';
 import { Ribbon } from './ribbon.js';
+import { initCookies, goal } from './cookies.js';
+import { initDocViews } from './docs.js';
 
 const doc = document.documentElement;
 const $ = (s, r = document) => r.querySelector(s);
@@ -623,12 +625,14 @@ const MSG = {
   email: 'Проверьте адрес почты: например, name@mail.ru.',
   phone: 'Проверьте номер: 10–15 цифр, например +7 900 000-00-00.',
   'phone-or-email': 'Укажите телефон (10–15 цифр) или почту вида name@mail.ru.',
+  consent: 'Отметьте согласие — без него мы не можем принять данные.',
 };
 function validateField(input) {
   const v = input.value.trim();
   const rule = input.dataset.validate;
   let err = '';
-  if (input.required && !v) err = MSG.required;
+  if (input.type === 'checkbox') err = input.required && !input.checked ? MSG.consent : '';
+  else if (input.required && !v) err = MSG.required;
   else if (input.name === 'name' && v.length < 2) err = MSG.name;
   else if (v && rule === 'email' && !reEmail.test(v)) err = MSG.email;
   else if (v && rule === 'phone' && !isPhone(v)) err = MSG.phone;
@@ -657,6 +661,7 @@ $$('form[data-form]').forEach((form) => {
   const submit = form.querySelector('[type="submit"]');
   const inputs = $$('input[required], input[data-validate]', form);
   inputs.forEach((i) => {
+    if (i.type === 'checkbox') return i.addEventListener('change', () => validateField(i));
     i.addEventListener('blur', () => i.value && validateField(i));
     i.addEventListener('input', () => i.getAttribute('aria-invalid') && validateField(i));
   });
@@ -682,13 +687,24 @@ $$('form[data-form]').forEach((form) => {
     submit.disabled = true;
     setStatus('Отправляем…');
     try {
+      const data = Object.fromEntries(new FormData(form));
+      // фиксация согласия вместе с заявкой: какая редакция, когда, на какой странице
+      if (data.pd_consent)
+        Object.assign(data, {
+          pd_consent: true,
+          consent_doc: CFG.legal?.consent,
+          consent_revision: CFG.legal?.revision,
+          consent_at: new Date().toISOString(),
+          page: location.href.split('#')[0],
+        });
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+        body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error(String(res.status));
       setStatus(OK[kind], 'is-ok');
+      goal('form_' + kind);
       form.reset();
     } catch {
       setStatus('Не получилось отправить: проблема с соединением или сервером. Данные сохранены — попробуйте ещё раз.', 'is-error');
@@ -1346,3 +1362,7 @@ header?.classList.toggle('is-scrolled', scrollY > 24);
 toTopUpdate();
 scrubUpdate(true);
 addEventListener('resize', () => scrubUpdate(true));
+
+/* ---------- cookie-баннер и документы внутри одного файла ---------- */
+initCookies(CFG);
+initDocViews();

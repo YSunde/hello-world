@@ -247,6 +247,109 @@ const socials = CFG.contacts.socials.map((s) => ({ label: s.label, href: s.url }
 
 const video = CFG.video && CFG.video.url;
 
+/* ---------- документы: политика, согласие, реквизиты (152-ФЗ) ---------- */
+const L = JSON.parse(read('legal.ru.json'));
+const LG = CFG.legal;
+const OP = LG.operator;
+const LU = L.ui;
+const DOC = { privacy: L.privacy.file, consent: L.consent.file, requisites: L.requisites.file };
+// контрольные цифры: опечатка в реквизитах ломает сборку, а не договор
+const ctl = (s, w) => (w.reduce((a, k, i) => a + k * +s[i], 0) % 11) % 10;
+const innOk = (s) => /^\d{12}$/.test(s) && ctl(s, [7, 2, 4, 10, 3, 5, 9, 4, 6, 8]) === +s[10] && ctl(s, [3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8]) === +s[11];
+const ogrnipOk = (s) => /^\d{15}$/.test(s) && Number(BigInt(s.slice(0, 14)) % 13n) % 10 === +s[14];
+const accOk = (bik, acc, ks) => {
+  const w = [7, 1, 3];
+  const sum = (x) => [...x].reduce((a, c, i) => a + +c * w[i % 3], 0) % 10 === 0;
+  return sum(bik.slice(-3) + acc) && sum('0' + bik.slice(4, 6) + ks);
+};
+if (!innOk(OP.inn) || !ogrnipOk(OP.ogrnip) || !accOk(OP.bank.bik, OP.bank.account, OP.bank.corr))
+  throw new Error('site.config.json → legal.operator: не сходятся контрольные цифры ИНН, ОГРНИП или счёта');
+for (const k of ['privacy', 'consent'])
+  if (!JSON.stringify(L[k]).includes(OP.inn) || !JSON.stringify(L[k]).includes(OP.ogrnip))
+    throw new Error(`legal.ru.json → ${k}: ИНН/ОГРНИП в тексте не совпадают с site.config.json`);
+const siteHost = LG.site_url ? LG.site_url.replace(/^https?:\/\//, '').replace(/\/$/, '') : '';
+const pdMail = LG.pd_email ? `<a href="mailto:${attr(LG.pd_email)}">${esc(LG.pd_email)}</a>` : '';
+const postal = esc(OP.postal_address);
+const TOKENS = {
+  address: esc(OP.legal_address),
+  pd_channel: pdMail
+    ? `электронная почта для обращений по вопросам обработки персональных данных: ${pdMail}`
+    : 'обращения по вопросам обработки персональных данных принимаются в письменной форме по этому адресу',
+  site_clause: siteHost
+    ? `Сайт КБ13 размещается по адресу: <a href="${attr(LG.site_url)}">${esc(siteHost)}</a> (далее&nbsp;— Сайт).`
+    : 'Сайт КБ13&nbsp;— сайт в&nbsp;сети «Интернет», на&nbsp;котором размещена настоящая Политика (далее&nbsp;— Сайт).',
+  pd_request: pdMail
+    ? `обратиться к&nbsp;Оператору по&nbsp;адресу электронной почты: ${pdMail} или направить письменное обращение по&nbsp;почтовому адресу Оператора: ${postal}.`
+    : `направить Оператору письменное обращение по&nbsp;почтовому адресу: ${postal}.`,
+  withdraw: pdMail
+    ? `направив обращение Оператору по&nbsp;адресу электронной почты: ${pdMail} или письменное обращение по&nbsp;почтовому адресу Оператора: ${postal}.`
+    : `направив Оператору письменное обращение по&nbsp;почтовому адресу: ${postal}.`,
+  policy_link: siteHost
+    ? ` по&nbsp;адресу: <a href="${attr(LG.site_url.replace(/\/$/, '') + '/' + DOC.privacy)}">${esc(siteHost + '/' + DOC.privacy)}</a>`
+    : `, опубликованной на&nbsp;сайте КБ13 в&nbsp;разделе «<a href="${DOC.privacy}">Политика обработки персональных данных</a>»`,
+};
+const lt = (s) =>
+  tp(s).replace(/\{\{(\w+)\}\}/g, (_, k) => {
+    if (!(k in TOKENS)) throw new Error('legal.ru.json: неизвестное поле {{' + k + '}}');
+    return TOKENS[k];
+  });
+
+/* Вебвизор не записывает содержимое полей форм (Политика, п. 8.4) */
+const ymHide = (h) => h.replace(/class="field__input/g, 'class="ym-disable-keys ym-hide-content field__input');
+
+/* галочка согласия: обязательна, по умолчанию не отмечена; текст согласия — отдельной страницей */
+const consentBox = (id) => `<div class="consent">
+          <label class="consent__box" for="${id}-pd">
+            <input class="consent__input" id="${id}-pd" name="pd_consent" type="checkbox" value="yes" required aria-describedby="${id}-pd-err">
+            <span class="consent__mark" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <span class="consent__text">Я даю <a href="${DOC.consent}" target="_blank" rel="noopener">согласие на&nbsp;обработку персональных данных</a></span>
+          </label>
+          <p class="consent__note">Как мы обращаемся с&nbsp;данными&nbsp;— в&nbsp;<a href="${DOC.privacy}" target="_blank" rel="noopener">Политике обработки персональных данных</a>. ${esc(LU.consent_note_post)}</p>
+          <p class="field__error" id="${id}-pd-err"></p>
+        </div>`;
+
+/* подвал — общий для главной и документов; base — путь к главной ('' на главной) */
+const footer = (base) => `<footer class="site-footer">
+  <div class="wrap site-footer__grid">
+    <a class="site-footer__logo" href="${base ? base : '#home'}" aria-label="КБ-13 — ${base ? 'на главную' : 'наверх страницы'}">${logo()}</a>
+    <nav class="site-footer__nav" aria-label="Навигация в подвале">
+      <ul>${C.navigation.items.map((n) => `<li><a href="${base}${n.anchor}">${esc(n.label)}</a></li>`).join('')}</ul>
+    </nav>
+    <div class="site-footer__legal">
+      <p class="site-footer__brand">КБ-13 · креативное бюро</p>
+      <p class="site-footer__op">${esc(OP.short)}<br>ИНН&nbsp;${esc(OP.inn)} · ОГРНИП&nbsp;${esc(OP.ogrnip)}</p>
+      <ul class="site-footer__docs">
+        <li><a href="${DOC.privacy}">Политика обработки персональных данных</a></li>
+        <li><a href="${DOC.consent}">Согласие на&nbsp;обработку персональных данных</a></li>
+        <li><a href="${DOC.requisites}">Реквизиты</a></li>
+        <li><button class="site-footer__cookie" type="button" data-cookie-open aria-controls="cookie-banner">${esc(LU.cookie_settings)}</button></li>
+      </ul>
+      <p class="site-footer__muted">${tp(LU.offer)}</p>
+      <p class="site-footer__muted">© ${new Date().getFullYear()} КБ-13</p>
+    </div>
+  </div>
+</footer>`;
+
+/* cookie-баннер: показывается при первом визите, выбор меняется в подвале («Настройки cookie») */
+const cookieBanner = () => `<section class="cookies" id="cookie-banner" aria-labelledby="cookie-title" data-saved="${attr(LU.cookie_saved)}" hidden>
+  <div class="cookies__main">
+    <p class="cookies__title" id="cookie-title"><svg class="cookies__bolt" viewBox="0 0 2000 1278.16" aria-hidden="true" focusable="false"><use href="#kb-bolt"/></svg>${esc(LU.cookie_title)}</p>
+    <p class="cookies__text">${tp(LU.cookie_text)} <a href="${DOC.privacy}#privacy-8">${esc(LU.cookie_more)}</a>.</p>
+  </div>
+  <div class="cookies__prefs" id="cookie-prefs" data-cookie-prefs hidden>
+    <label class="cookies__opt"><input type="checkbox" checked disabled><span><b>${esc(LU.cookie_necessary)}</b> ${tp(LU.cookie_necessary_note)}</span></label>
+    <label class="cookies__opt"><input type="checkbox" name="analytics"><span><b>${esc(LU.cookie_analytics)}</b> ${tp(LU.cookie_analytics_note)}</span></label>
+    <label class="cookies__opt"><input type="checkbox" name="marketing"><span><b>${esc(LU.cookie_marketing)}</b> ${tp(LU.cookie_marketing_note)}</span></label>
+  </div>
+  <div class="cookies__actions">
+    <button class="btn btn--primary btn--small" type="button" data-cookie="all"><span class="btn__label">${esc(LU.cookie_accept)}</span></button>
+    <button class="btn btn--ghost btn--small" type="button" data-cookie="necessary"><span class="btn__label">${esc(LU.cookie_reject)}</span></button>
+    <button class="cookies__link" type="button" data-cookie="custom" aria-expanded="false" aria-controls="cookie-prefs">${esc(LU.cookie_custom)}</button>
+    <button class="btn btn--primary btn--small" type="button" data-cookie="save" hidden><span class="btn__label">${esc(LU.cookie_save)}</span></button>
+  </div>
+  <p class="sr-only" role="status" data-cookie-status></p>
+</section>`;
+
 /* ---------- разметка ---------- */
 const html = `<!doctype html>
 <html lang="ru" class="no-js">
@@ -266,6 +369,8 @@ const html = `<!doctype html>
   phone: CFG.phone,
   endpoints: CFG.endpoints,
   chat: CFG.chat,
+  analytics: CFG.analytics,
+  legal: { revision: LG.revision, consent: DOC.consent },
 }).replace(/</g, '\\u003c')}</script>
 <script src="assets/js/site.js?v=${VERSION}" defer></script>
 </head>
@@ -499,6 +604,7 @@ ${sprite()}
             <input class="field__input" id="bf-contact" name="contact" type="text" autocomplete="email" inputmode="email" required data-validate="phone-or-email" aria-describedby="bf-contact-err">
             <p class="field__error" id="bf-contact-err"></p>
           </div>
+          ${consentBox('bf')}
           <div class="form__submit"><button class="btn btn--primary btn--wide" type="submit"><span class="btn__label">${esc(QZ.submit)}</span>${iconInline('send', 'btn__icon')}<span class="btn__arc" aria-hidden="true"></span></button></div>
           <p class="form__status" role="status" aria-live="polite"></p>
         </div>
@@ -632,6 +738,7 @@ ${sprite()}
           <label class="field__label" for="cf-task">${esc(K.labels.task)}</label>
           <textarea class="field__input field__input--area" id="cf-task" name="task" rows="4"></textarea>
         </div>
+        ${consentBox('cf')}
         <div class="form__submit">
           <button class="btn btn--primary btn--wide" type="submit"><span class="btn__label">${esc(K.labels.submit)}</span>${iconInline('send', 'btn__icon')}<span class="btn__arc" aria-hidden="true"></span></button>
         </div>
@@ -643,18 +750,7 @@ ${sprite()}
 
 </main>
 
-<footer class="site-footer">
-  <div class="wrap site-footer__grid">
-    <a class="site-footer__logo" href="#home" aria-label="КБ-13 — наверх страницы">${logo()}</a>
-    <nav class="site-footer__nav" aria-label="Навигация в подвале">
-      <ul>${C.navigation.items.map((n) => `<li><a href="${n.anchor}">${esc(n.label)}</a></li>`).join('')}</ul>
-    </nav>
-    <div class="site-footer__legal">
-      <p>КБ-13 · креативное бюро</p>
-      <p class="site-footer__muted">Реквизиты, политика конфиденциальности и согласие на рассылку будут опубликованы после утверждения текстов.</p>
-    </div>
-  </div>
-</footer>
+${footer('')}
 
 <button class="talk" type="button" aria-haspopup="dialog" aria-controls="chat-panel" aria-label="${attr(T.chat_label)}: ${attr(O.chat.title)}" data-open-chat data-talk>
   <span class="talk__bubble" aria-hidden="true"><span class="talk__text" data-talk-text>${esc(T.chat_label)}</span></span>
@@ -707,6 +803,7 @@ ${sprite()}
       <input class="field__input" id="lf-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required data-validate="phone" aria-describedby="lf-phone-err">
       <p class="field__error" id="lf-phone-err"></p>
     </div>
+    ${consentBox('lf')}
     <div class="form__submit"><button class="btn btn--primary btn--wide" type="submit"><span class="btn__label">${esc(O.lead.submit)}</span>${iconInline('send', 'btn__icon')}<span class="btn__arc" aria-hidden="true"></span></button></div>
     <p class="form__status" role="status" aria-live="polite"></p>
   </form>
@@ -725,18 +822,147 @@ ${sprite()}
       <input class="field__input" id="ck-email" name="email" type="email" autocomplete="email" inputmode="email" required data-validate="email" aria-describedby="ck-email-err">
       <p class="field__error" id="ck-email-err"></p>
     </div>
-    <p class="modal__consent">Здесь будет утверждённый текст согласия на рассылку со ссылкой на документ.</p>
+    ${consentBox('ck')}
     <div class="form__submit"><button class="btn btn--primary btn--wide" type="submit"><span class="btn__label">${esc(O.checklist.submit)}</span>${iconInline('download', 'btn__icon')}<span class="btn__arc" aria-hidden="true"></span></button></div>
     <p class="form__status" role="status" aria-live="polite"></p>
   </form>
 </dialog>
+
+${cookieBanner()}
 
 <noscript><style>.hero__slide{position:static!important;visibility:visible!important}.faq__a{grid-template-rows:1fr!important}</style></noscript>
 </body>
 </html>
 `;
 
-writeFileSync(join(root, 'index.html'), html);
+writeFileSync(join(root, 'index.html'), ymHide(html));
+
+/* ---------- страницы документов: privacy.html, consent.html, requisites.html ---------- */
+const docBlocks = (sec) =>
+  sec.blocks
+    .map((b) => {
+      if (b.ul) return `<ul class="doc__list">${b.ul.map((li) => `<li>${lt(li)}</li>`).join('')}</ul>`;
+      if (b.table) {
+        const t = b.table;
+        return `<div class="doc__table" role="region" aria-label="${attr(t.head.join(', '))}" tabindex="0"><table><thead><tr>${t.head.map((h) => `<th scope="col">${esc(h)}</th>`).join('')}</tr></thead><tbody>${t.rows
+          .map((r) => `<tr>${r.map((c, i) => (i ? `<td data-label="${attr(t.head[i])}">${lt(c)}</td>` : `<th scope="row">${lt(c)}</th>`)).join('')}</tr>`)
+          .join('')}</tbody></table></div>`;
+      }
+      let p = lt(b.p).replace(/^(\d+\.\d+\.)\s/, '<span class="doc__n">$1</span> ');
+      if (/^2\. /.test(sec.h)) p = p.replace(/^([^&<]{2,60}?)&nbsp;— /, '<b>$1</b>&nbsp;— ');
+      return `<p>${p}</p>`;
+    })
+    .join('\n        ');
+const secNo = (h) => h.match(/^(\d+)\./)[1];
+const secName = (h) => h.replace(/^\d+\.\s*/, '');
+const docSections = (key, d) =>
+  d.sections
+    .map(
+      (s) => `<section class="doc__sec" aria-labelledby="${key}-${secNo(s.h)}">
+        <h2 class="doc__h" id="${key}-${secNo(s.h)}"><span class="doc__hn">${secNo(s.h)}</span>${tp(secName(s.h))}</h2>
+        ${docBlocks(s)}
+      </section>`
+    )
+    .join('\n      ');
+const docToc = (key, d) => `<nav class="doc__toc" aria-labelledby="${key}-toc">
+      <p class="doc__toc-t" id="${key}-toc">${esc(LU.contents)}</p>
+      <ol>${d.sections.map((s) => `<li><a href="#${key}-${secNo(s.h)}"><span>${secNo(s.h)}</span>${tp(secName(s.h))}</a></li>`).join('')}</ol>
+    </nav>`;
+const docNav = (cur) =>
+  `<nav class="doc-tabs" aria-label="${attr(LU.docs)}"><ul>${['privacy', 'consent', 'requisites']
+    .map((k) => `<li><a href="${DOC[k]}"${k === cur ? ' aria-current="page"' : ''}>${esc(L[k].nav)}</a></li>`)
+    .join('')}</ul></nav>`;
+const docPage = (key, { title, sub, rev, toc = '', body }) => `<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>${esc(title)} — КБ-13</title>
+<meta name="description" content="${attr(`${title} — ${OP.short}, сайт креативного бюро КБ-13`)}">
+<meta name="theme-color" content="#F5F4F0">${siteHost ? `\n<link rel="canonical" href="${attr(LG.site_url.replace(/\/$/, '') + '/' + DOC[key])}">` : ''}
+<link rel="icon" href="assets/brand/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/fonts.css?v=${VERSION}">
+<link rel="stylesheet" href="assets/css/main.css?v=${VERSION}">
+<script>document.documentElement.className='js';</script>
+<script type="application/json" id="kb-config">${JSON.stringify({ analytics: CFG.analytics }).replace(/</g, '\\u003c')}</script>
+<script src="assets/js/doc-site.js?v=${VERSION}" defer></script>
+</head>
+<body class="doc-page">
+${sprite()}
+<a class="skip-link" href="#${key}-text">Перейти к тексту</a>
+<!--docpage:${key}-->
+<header class="doc-top">
+  <div class="wrap doc-top__row">
+    <a class="doc-top__logo" href="index.html" aria-label="КБ-13 — на главную">${logo()}</a>
+    ${docNav(key)}
+    <a class="doc-top__back" href="index.html">${icon('arrow-left')}<span>${esc(LU.back)}</span></a>
+  </div>
+</header>
+<main class="doc doc--${key}" id="${key}-text">
+  <div class="wrap doc__grid">
+    <header class="doc__head">
+      <p class="doc__eyebrow">${esc(LU.docs)} КБ-13</p>
+      <h1 class="display doc__title">${tp(title)}</h1>
+      ${sub ? `<p class="doc__sub">${tp(sub)}</p>` : ''}
+      <p class="doc__rev">${rev}</p>
+      <svg class="doc__bolt" viewBox="0 0 2000 1278.16" aria-hidden="true" focusable="false"><use href="#kb-bolt"/></svg>
+    </header>
+    ${toc}
+    <div class="doc__body">
+      ${body}
+    </div>
+  </div>
+</main>
+${footer('index.html')}
+<!--/docpage:${key}-->
+${cookieBanner()}
+</body>
+</html>
+`;
+const revLine = `${esc(LU.revision)} ${esc(LG.revision)}`;
+writeFileSync(
+  join(root, DOC.privacy),
+  docPage('privacy', { title: L.privacy.title, sub: L.privacy.subtitle, rev: revLine, toc: docToc('privacy', L.privacy), body: docSections('privacy', L.privacy) })
+);
+writeFileSync(
+  join(root, DOC.consent),
+  docPage('consent', {
+    title: L.consent.title,
+    sub: L.consent.subtitle,
+    rev: revLine,
+    body: `${L.consent.intro.map((p) => `<p class="doc__lead">${lt(p)}</p>`).join('')}
+      ${docSections('consent', L.consent)}`,
+  })
+);
+const reqRows = [
+  ['Исполнитель', OP.full],
+  ['ИНН', OP.inn],
+  ['ОГРНИП', OP.ogrnip],
+  ['Адрес регистрации', OP.legal_address],
+  ['Почтовый адрес', OP.postal_address],
+  ['Расчётный счёт', OP.bank.account],
+  ['Банк', OP.bank.name],
+  ['Корреспондентский счёт', OP.bank.corr],
+  ['БИК', OP.bank.bik],
+  ...CFG.contacts.phones.map((p) => ['Телефон', p]),
+  ...CFG.contacts.emails.map((e) => ['E-mail', e]),
+  ...(LG.pd_email ? [['E-mail по вопросам персональных данных', LG.pd_email]] : []),
+];
+writeFileSync(
+  join(root, DOC.requisites),
+  docPage('requisites', {
+    title: L.requisites.title,
+    sub: L.requisites.subtitle,
+    rev: `Данные актуальны на ${esc(LG.revision)}`,
+    body: `<dl class="req">
+        ${reqRows.map(([k, v]) => `<div class="req__row"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('\n        ')}
+      </dl>
+      <div class="req__actions">
+        <button class="btn btn--primary" type="button" data-copy="${attr(reqRows.map(([k, v]) => `${k}: ${v}`).join('\n'))}" data-copied="${attr(L.requisites.copied)}"><span class="btn__label">${esc(L.requisites.copy)}</span>${iconInline('copy', 'btn__icon')}<span class="btn__arc" aria-hidden="true"></span></button>
+      </div>
+      <p class="doc__note">${esc(OP.short)}&nbsp;— также оператор персональных данных посетителей сайта. Как мы обращаемся с&nbsp;данными, описано в&nbsp;<a href="${DOC.privacy}">Политике обработки персональных данных</a>.</p>`,
+  })
+);
 // шрифты встроены в fonts.css: с диска (file://) Chrome не отдаёт woff2 по url(), и заголовки ломались бы
 const LATIN = 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD';
 const CYR = 'U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116';
@@ -757,4 +983,5 @@ writeFileSync(
 );
 // скрипты одним классическим файлом: страница работает и с диска (file://), без сервера и интернета
 writeFileSync(join(root, 'assets/js/site.js'), bundle(join(root, 'assets/js/main.js')));
+writeFileSync(join(root, 'assets/js/doc-site.js'), bundle(join(root, 'assets/js/doc-main.js')));
 console.log(`index.html: ${(html.length / 1024).toFixed(1)} KB`);

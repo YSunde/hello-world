@@ -4,7 +4,7 @@
  * подключает уже собранный assets/js/site.js. Понимает то, что есть в assets/js:
  *   import { a, b as c } from './x.js';
  *   export function / class / const / let; export { a, b as c };
- *   node scripts/bundle.mjs            → пишет assets/js/site.js
+ *   node scripts/bundle.mjs            → пишет assets/js/site.js (главная) и doc-site.js (документы)
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve, relative, basename } from 'node:path';
@@ -67,7 +67,9 @@ export function bundle(entry) {
 // запуск напрямую: node scripts/bundle.mjs
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-  const js = bundle(join(root, 'assets/js/main.js'));
-  writeFileSync(join(root, 'assets/js/site.js'), js);
-  console.log(`assets/js/site.js: ${(Buffer.byteLength(js) / 1024).toFixed(1)} KB`);
+  for (const [entry, out] of [['main.js', 'site.js'], ['doc-main.js', 'doc-site.js']]) {
+    const js = bundle(join(root, 'assets/js', entry));
+    writeFileSync(join(root, 'assets/js', out), js);
+    console.log(`assets/js/${out}: ${(Buffer.byteLength(js) / 1024).toFixed(1)} KB`);
+  }
 }

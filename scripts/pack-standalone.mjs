@@ -3,6 +3,7 @@
  * КБ-13 · сборка сайта в ОДИН независимый HTML-файл.
  * Внутрь кладутся скрипты (собраны в один, без модулей), стили, шрифты, картинки, видео.
  * Файл открывается двойным кликом с диска (file://), без сервера и VS Code.
+ * Политика, согласие и реквизиты тоже внутри: ссылки на них открывают документ в том же файле.
  *   node scripts/pack-standalone.mjs [выходной-файл]
  * Нужен только node 18+; интернет не нужен. Если есть ffmpeg (libx264, libvpx-vp9) — видео
  * сжимается до 720p, без ffmpeg кладётся исходное.
@@ -32,6 +33,22 @@ const asset = (rel) => {
 // 1) свежая страница
 execFileSync('node', [join(root, 'scripts/build.mjs')], { stdio: 'inherit' });
 let html = readFileSync(join(root, 'index.html'), 'utf8');
+
+// 1б) документы (политика, согласие, реквизиты) — внутрь того же файла: ссылка privacy.html
+//     становится #doc-privacy и показывает документ вместо страницы (assets/js/docs.js)
+const DOCS = ['privacy', 'consent', 'requisites'];
+const views = DOCS.map((k) => {
+  const page = readFileSync(join(root, `${k}.html`), 'utf8');
+  const m = page.match(new RegExp(`<!--docpage:${k}-->([\\s\\S]*?)<!--/docpage:${k}-->`));
+  if (!m) throw new Error(`${k}.html: нет блока документа`);
+  const title = page.match(/<title>([^<]*)<\/title>/)[1];
+  // один <main> на файл: в документах он становится <article>
+  const body = m[1].replace(/<main /, '<article ').replace(/<\/main>/, '</article>');
+  return `<div class="docview" id="doc-${k}" data-title="${title}" hidden>${body}</div>`;
+}).join('\n');
+html = html.replace('<section class="cookies"', () => `${views}\n<section class="cookies"`);
+html = html.replace(/href="(privacy|consent|requisites)\.html(#[^"]*)?"/g, (_, k, hash) => `href="${hash || '#doc-' + k}"`);
+html = html.replace(/href="index\.html(#[^"]*)?"/g, (_, hash) => `href="${hash || '#home'}"`);
 
 // 2) скрипты: уже собраны build.mjs в один классический файл (scripts/bundle.mjs)
 const js = readFileSync(join(root, 'assets/js/site.js'), 'utf8').replace(/<\/script/gi, '<\\/script');

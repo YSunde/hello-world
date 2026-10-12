@@ -1490,6 +1490,205 @@ class Ribbon {
 return { Ribbon };
 })();
 
+const __kb_cookies_4 = (() => {
+'use strict';
+/*
+ * КБ-13 · cookie-баннер и счётчики по согласию (Политика, раздел 8).
+ * Необходимое — только запоминание выбора (localStorage). Яндекс Метрика с Вебвизором
+ * («аналитические») и VK Pixel («маркетинговые») подключаются лишь после согласия
+ * и только если их номер задан в site.config.json → analytics.
+ */
+const KEY = 'kb13-cookie-consent';
+const VER = 1;
+const TRACK_COOKIES = /^(_ym|yabs|yandexuid|_tmr|tmr_)/;
+
+const load = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY) || 'null');
+    return v && v.v === VER ? v : null;
+  } catch {
+    return null;
+  }
+};
+const save = (v) => {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(v));
+  } catch {}
+};
+const addScript = (src, id) => {
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = src;
+  if (id) s.id = id;
+  document.head.appendChild(s);
+};
+const dropTrackers = () => {
+  const host = location.hostname;
+  document.cookie.split(';').forEach((c) => {
+    const name = c.split('=')[0].trim();
+    if (!TRACK_COOKIES.test(name)) return;
+    for (const d of ['', host, '.' + host, '.' + host.split('.').slice(-2).join('.')])
+      document.cookie = `${name}=; Max-Age=0; path=/${d ? '; domain=' + d : ''}`;
+  });
+};
+
+let loaded = { analytics: false, marketing: false };
+let ids = {};
+
+function apply(c) {
+  if (c?.analytics && ids.ym && !loaded.analytics) {
+    loaded.analytics = true;
+    const ym = (window.ym = window.ym || function () { (ym.a = ym.a || []).push(arguments); });
+    ym.l = Date.now();
+    addScript('https://mc.yandex.ru/metrika/tag.js');
+    ym(ids.ym, 'init', { clickmap: true, trackLinks: true, accurateTrackBounce: true, webvisor: true });
+  }
+  if (c?.marketing && ids.vk && !loaded.marketing) {
+    loaded.marketing = true;
+    (window._tmr = window._tmr || []).push({ id: String(ids.vk), type: 'pageView', start: Date.now() });
+    addScript('https://top-fwz1.mail.ru/js/code.js', 'tmr-code');
+  }
+}
+
+/* цель без персональных данных: только тип формы */
+function goal(name) {
+  try {
+    if (loaded.analytics) window.ym?.(ids.ym, 'reachGoal', name);
+    if (loaded.marketing) window._tmr?.push({ type: 'reachGoal', id: String(ids.vk), goal: name });
+  } catch {}
+}
+
+function initCookies(cfg = {}) {
+  ids = { ym: cfg.analytics?.yandex_metrika_id, vk: cfg.analytics?.vk_pixel_id };
+  const box = document.getElementById('cookie-banner');
+  let choice = load();
+  apply(choice);
+  if (!box) return;
+  const prefs = box.querySelector('[data-cookie-prefs]');
+  const custom = box.querySelector('[data-cookie="custom"]');
+  const saveBtn = box.querySelector('[data-cookie="save"]');
+  const status = box.querySelector('[data-cookie-status]');
+  let opener = null;
+
+  const fill = () => {
+    prefs.querySelector('[name="analytics"]').checked = !!choice?.analytics;
+    prefs.querySelector('[name="marketing"]').checked = !!choice?.marketing;
+  };
+  const expand = (on) => {
+    prefs.hidden = !on;
+    saveBtn.hidden = !on;
+    custom.hidden = on;
+    custom.setAttribute('aria-expanded', String(on));
+  };
+  const show = (withPrefs) => {
+    fill();
+    expand(withPrefs);
+    if (status) status.textContent = '';
+    box.hidden = false;
+    requestAnimationFrame(() => box.classList.add('is-in'));
+  };
+  const hide = () => {
+    box.classList.remove('is-in');
+    box.hidden = true;
+    opener?.focus?.();
+    opener = null;
+  };
+  const decide = (analytics, marketing) => {
+    const was = choice;
+    choice = { v: VER, analytics, marketing, at: new Date().toISOString() };
+    save(choice);
+    if (status) status.textContent = box.dataset.saved || '';
+    // отозвали согласие на уже запущенный счётчик — убираем его cookie и перезагружаем без него
+    if ((was?.analytics && !analytics && loaded.analytics) || (was?.marketing && !marketing && loaded.marketing)) {
+      dropTrackers();
+      location.reload();
+      return;
+    }
+    if (!analytics || !marketing) dropTrackers();
+    apply(choice);
+    hide();
+  };
+
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cookie]');
+    if (!b) return;
+    const act = b.dataset.cookie;
+    if (act === 'all') decide(true, true);
+    else if (act === 'necessary') decide(false, false);
+    else if (act === 'custom') {
+      expand(true);
+      prefs.querySelector('[name="analytics"]').focus();
+    } else if (act === 'save')
+      decide(prefs.querySelector('[name="analytics"]').checked, prefs.querySelector('[name="marketing"]').checked);
+  });
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && choice) hide();
+  });
+  document.querySelectorAll('[data-cookie-open]').forEach((b) =>
+    b.addEventListener('click', () => {
+      opener = b;
+      show(true);
+      prefs.querySelector('[name="analytics"]').focus();
+    })
+  );
+  if (!choice) setTimeout(() => show(false), 900);
+}
+return { goal, initCookies };
+})();
+
+const __kb_docs_5 = (() => {
+'use strict';
+/*
+ * КБ-13 · документы внутри одного файла (сборка в готовое/): ссылка #doc-privacy, #doc-consent,
+ * #doc-requisites или на пункт документа показывает его вместо страницы; «назад» возвращает
+ * страницу на то же место. На сайте документы — отдельные страницы, там этого блока нет.
+ */
+function initDocViews() {
+  const views = Array.from(document.querySelectorAll('.docview'));
+  if (!views.length) return;
+  const root = document.documentElement;
+  const baseTitle = document.title;
+  let open = null;
+  let back = 0;
+  const jump = (y) => {
+    try {
+      scrollTo({ top: y, behavior: 'instant' });
+    } catch {
+      scrollTo(0, y);
+    }
+  };
+  const route = () => {
+    let id = '';
+    try {
+      id = decodeURIComponent(location.hash.slice(1));
+    } catch {}
+    const el = id ? document.getElementById(id) : null;
+    const view = el?.closest('.docview') || null;
+    if (view) {
+      // переход внутри открытого документа (содержание) браузер листает сам
+      if (view === open && el !== view) return;
+      if (!open) back = scrollY;
+      views.forEach((v) => (v.hidden = v !== view));
+      open = view;
+      root.classList.add('doc-open');
+      document.title = view.dataset.title || baseTitle;
+      if (el === view) jump(0);
+      else el.scrollIntoView({ block: 'start', behavior: 'instant' });
+    } else if (open) {
+      views.forEach((v) => (v.hidden = true));
+      open = null;
+      root.classList.remove('doc-open');
+      document.title = baseTitle;
+      if (el) el.scrollIntoView({ block: 'start' });
+      else jump(back);
+    }
+  };
+  addEventListener('hashchange', route);
+  route();
+}
+return { initDocViews };
+})();
+
 (() => {
 'use strict';
 /*
@@ -1499,6 +1698,8 @@ return { Ribbon };
 const { LightningField, brandWaypoints, arcPath } = __kb_lightning_1;
 const { Storm } = __kb_storm_2;
 const { Ribbon } = __kb_ribbon_3;
+const { initCookies, goal } = __kb_cookies_4;
+const { initDocViews } = __kb_docs_5;
 
 const doc = document.documentElement;
 const $ = (s, r = document) => r.querySelector(s);
@@ -2117,12 +2318,14 @@ const MSG = {
   email: 'Проверьте адрес почты: например, name@mail.ru.',
   phone: 'Проверьте номер: 10–15 цифр, например +7 900 000-00-00.',
   'phone-or-email': 'Укажите телефон (10–15 цифр) или почту вида name@mail.ru.',
+  consent: 'Отметьте согласие — без него мы не можем принять данные.',
 };
 function validateField(input) {
   const v = input.value.trim();
   const rule = input.dataset.validate;
   let err = '';
-  if (input.required && !v) err = MSG.required;
+  if (input.type === 'checkbox') err = input.required && !input.checked ? MSG.consent : '';
+  else if (input.required && !v) err = MSG.required;
   else if (input.name === 'name' && v.length < 2) err = MSG.name;
   else if (v && rule === 'email' && !reEmail.test(v)) err = MSG.email;
   else if (v && rule === 'phone' && !isPhone(v)) err = MSG.phone;
@@ -2151,6 +2354,7 @@ $$('form[data-form]').forEach((form) => {
   const submit = form.querySelector('[type="submit"]');
   const inputs = $$('input[required], input[data-validate]', form);
   inputs.forEach((i) => {
+    if (i.type === 'checkbox') return i.addEventListener('change', () => validateField(i));
     i.addEventListener('blur', () => i.value && validateField(i));
     i.addEventListener('input', () => i.getAttribute('aria-invalid') && validateField(i));
   });
@@ -2176,13 +2380,24 @@ $$('form[data-form]').forEach((form) => {
     submit.disabled = true;
     setStatus('Отправляем…');
     try {
+      const data = Object.fromEntries(new FormData(form));
+      // фиксация согласия вместе с заявкой: какая редакция, когда, на какой странице
+      if (data.pd_consent)
+        Object.assign(data, {
+          pd_consent: true,
+          consent_doc: CFG.legal?.consent,
+          consent_revision: CFG.legal?.revision,
+          consent_at: new Date().toISOString(),
+          page: location.href.split('#')[0],
+        });
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+        body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error(String(res.status));
       setStatus(OK[kind], 'is-ok');
+      goal('form_' + kind);
       form.reset();
     } catch {
       setStatus('Не получилось отправить: проблема с соединением или сервером. Данные сохранены — попробуйте ещё раз.', 'is-error');
@@ -2840,5 +3055,9 @@ header?.classList.toggle('is-scrolled', scrollY > 24);
 toTopUpdate();
 scrubUpdate(true);
 addEventListener('resize', () => scrubUpdate(true));
+
+/* ---------- cookie-баннер и документы внутри одного файла ---------- */
+initCookies(CFG);
+initDocViews();
 })();
 })();
