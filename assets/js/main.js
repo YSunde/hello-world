@@ -894,6 +894,7 @@ const ribbon = new Ribbon({
     if (key.startsWith('who:')) {
       const w = t.el;
       w.classList.toggle('is-on', on);
+      if (key === 'who:comparison') $('#comparison')?.classList.toggle('is-pointing', on);
       // лучи — пока человек ещё доезжает: не ждать конца въезда, иначе их видно уже после прокрутки
       if (on) fireBeams(w, $(whoTarget[key.slice(4)]), { delay: 480 });
     } else if (key.startsWith('pkg-')) {
@@ -1381,6 +1382,62 @@ header?.classList.toggle('is-scrolled', scrollY > 24);
 toTopUpdate();
 scrubUpdate(true);
 addEventListener('resize', () => scrubUpdate(true));
+
+/* ---------- «Сводная»: стрелка от головы человека до заголовка ----------
+   считается по раскладке (без учёта въезда), поэтому доезжает до заголовка при любой ширине */
+const cmpWrap = $('.comparison > .wrap');
+const cmpWho = $('[data-who="comparison"]');
+const cmpTitle = $('#comparison-title');
+if (cmpWrap && cmpWho && cmpTitle) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'cmp-arrow');
+  svg.setAttribute('aria-hidden', 'true');
+  const line = document.createElementNS(NS, 'path');
+  const head = document.createElementNS(NS, 'path');
+  [line, head].forEach((p, i) => {
+    p.setAttribute('pathLength', '1');
+    p.style.setProperty('--i', i);
+    svg.append(p);
+  });
+  cmpWrap.append(svg);
+  const box = (el) => {
+    let x = 0;
+    let y = 0;
+    for (let n = el; n && n !== cmpWrap; n = n.offsetParent) {
+      x += n.offsetLeft;
+      y += n.offsetTop;
+    }
+    return { x, y, w: el.offsetWidth, h: el.offsetHeight };
+  };
+  const f = (v) => v.toFixed(1);
+  const drawArrow = () => {
+    const W = box(cmpWho);
+    const T = box(cmpTitle);
+    if (!W.w || !T.w) return;
+    // от уха — правее и чуть выше головы (кадр 1024×1536, голова ≈ x 0.42–0.6, y 0.02–0.14)
+    const sx = W.x + W.w * 0.64;
+    const sy = W.y + W.h * 0.075;
+    const ex = T.x - 16;
+    const ey = T.y + T.h * 0.5;
+    const dx = ex - sx;
+    const dy = ey - sy;
+    const lift = 26 + Math.abs(dx) * 0.14;
+    const c1x = sx + dx * 0.42;
+    const c1y = sy - lift;
+    const c2x = ex - Math.max(28, dx * 0.32);
+    const c2y = dy > 60 ? ey - dy * 0.42 : ey - lift * 0.7;
+    line.setAttribute('d', `M${f(sx)} ${f(sy)}C${f(c1x)} ${f(c1y)} ${f(c2x)} ${f(c2y)} ${f(ex)} ${f(ey)}`);
+    const a = Math.atan2(ey - c2y, ex - c2x);
+    const L = 15;
+    const wing = (s) => `${f(ex - L * Math.cos(a + s))} ${f(ey - L * Math.sin(a + s))}`;
+    head.setAttribute('d', `M${wing(0.52)} ${f(ex)} ${f(ey)} ${wing(-0.52)}`);
+  };
+  new ResizeObserver(drawArrow).observe(cmpWrap);
+  (document.fonts?.ready || Promise.resolve()).then(drawArrow);
+  addEventListener('load', drawArrow);
+  if (reduce()) $('#comparison')?.classList.add('is-pointing');
+}
 
 /* ---------- cookie-баннер и документы внутри одного файла ---------- */
 initCookies(CFG);

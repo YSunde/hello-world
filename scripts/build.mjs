@@ -127,15 +127,7 @@ const DOODLES = {
       { d: star(800, 120, 16), c: 'red', w: 1.6 },
     ],
   },
-  // «Сводная» (1024×1536): стрелка уходит вправо за кадр — к заголовку таблицы
-  point: {
-    box: [0, 0, 1500, 1536],
-    wide: true,
-    paths: [
-      { d: 'M650 250C850 210 1040 330 1080 560', c: 'red', w: 2.6 },
-      { d: 'M1040 524 1082 566 1118 518', c: 'red', w: 2.6 },
-    ],
-  },
+  // «Сводная»: стрелка от головы до заголовка рисуется в main.js по раскладке — доезжает при любой ширине
   // «Контакты» (1122×1402): «звонок» — дуги в свободном углу над головой
   ring: {
     box: [0, 0, 1122, 1402],
@@ -532,7 +524,7 @@ ${sprite()}
           }</span></h3>
           <dl class="pkg__meta">
             <div><dt>Формат:</dt> <dd>${esc(p.format)}</dd></div>
-            <div><dt>Срок:</dt> <dd>${p.days} дней</dd></div>
+            <div class="pkg__term"><dt>Срок:</dt> <dd><b>${p.days}</b> дней</dd></div>
           </dl>
         </div>
         <figure class="pkg__photo pkg__photo--${p.id}"><div class="pkg__frame">
@@ -625,7 +617,7 @@ ${sprite()}
 <section class="comparison section" id="comparison" aria-labelledby="comparison-title">
   <div class="wrap">
     <div class="comparison__intro">
-      <div class="comparison__presenter">${who('comparison', '13-team-2', { imgCls: 'comparison__person', sizes: '(min-width: 1024px) 22vw, 40vw', extra: doodle('point'), slide: 'left' })}</div>
+      <div class="comparison__presenter">${who('comparison', '13-team-2', { imgCls: 'comparison__person', sizes: '(min-width: 1024px) 30vw, 50vw', slide: 'left' })}</div>
       <h2 class="display section__title comparison__title" id="comparison-title">${esc(T.title)}</h2>
     </div>
     <div class="cmp" data-cmp>

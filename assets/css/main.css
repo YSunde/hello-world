@@ -4826,3 +4826,141 @@ main,
 .js .who[data-slide-from].is-on {
   transition-duration: 0.75s;
 }
+
+/* =========================================================
+   Правка 12.10 (10): пакеты компактнее, срок выделен;
+   «Сводная» — человек крупнее и сбоку от таблицы, стрелка до заголовка
+   ========================================================= */
+/* срок — красная капсула с крупной цифрой */
+.pkg__meta {
+  align-items: center;
+}
+.pkg__meta .pkg__term {
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 18px 8px 16px;
+  border: 2px solid var(--red);
+  border-radius: 999px;
+  background: var(--white);
+}
+.pkg__term dt {
+  color: var(--ink);
+  font-weight: 650;
+}
+.pkg__term dd {
+  font-weight: 800;
+}
+.pkg__term b {
+  margin-right: 3px;
+  font-family: var(--f-display);
+  font-weight: 900;
+  font-size: 32px;
+  line-height: 0.7;
+  color: var(--red);
+}
+/* картинки пакетов меньше; кнопка сразу под текстом, без пустоты высотой в картинку */
+.pkg__photo {
+  max-width: 440px;
+}
+@media (min-width: 1024px) {
+  .pkg {
+    padding-block: var(--s6);
+  }
+  .pkg__photo {
+    max-width: 400px;
+  }
+  .pkg__body {
+    justify-content: flex-start;
+  }
+}
+
+/* «Сводная»: человек крупнее (прозрачные поля кадра уходят за колонку) */
+.comparison > .wrap {
+  position: relative;
+}
+.comparison__presenter .who {
+  width: 138%;
+  max-width: none;
+  margin-left: -22%;
+}
+@media (min-width: 1024px) {
+  .comparison__presenter .who {
+    width: 128%;
+    margin-left: -12%;
+  }
+}
+/* ≥1024: человек слева во всю высоту таблицы, заголовок и таблица справа — без пустоты сверху */
+@media (min-width: 1024px) {
+  .comparison > .wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 2.6fr) minmax(0, 9.4fr);
+    column-gap: var(--gap);
+    align-items: start;
+  }
+  .comparison__intro {
+    display: contents;
+  }
+  .comparison__presenter {
+    grid-column: 1;
+    grid-row: 1 / span 5;
+    max-width: none;
+  }
+  .comparison__presenter .who {
+    width: 122%;
+    margin-left: -6%;
+  }
+  .comparison__title,
+  .comparison .cmp,
+  .comparison .table-hint,
+  .comparison .table-scroll,
+  .comparison__actions {
+    grid-column: 2;
+  }
+  .comparison__title {
+    margin: 0 0 var(--s5);
+    padding-top: clamp(16px, 2.4vw, 40px);
+  }
+  /* таблица в 9 колонках: шапка чуть мельче, чтобы названия пакетов шли в одну строку */
+  .comparison .compare {
+    min-width: 0;
+  }
+  .comparison .compare thead th[data-col] {
+    font-size: clamp(22px, 2.15vw, 32px);
+  }
+}
+@media (min-width: 1280px) {
+  .comparison > .wrap {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 9fr);
+  }
+  .comparison .compare__c0 {
+    width: 20%;
+  }
+}
+/* стрелка от головы до заголовка (координаты — assets/js/main.js) */
+.cmp-arrow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  z-index: 3;
+}
+.cmp-arrow path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.5s var(--ease) calc(0.35s + var(--i, 0) * 0.42s);
+}
+.comparison.is-pointing .cmp-arrow path {
+  stroke-dashoffset: 0;
+}
+@media (max-width: 1023px) {
+  .cmp-arrow {
+    display: none;
+  }
+}
