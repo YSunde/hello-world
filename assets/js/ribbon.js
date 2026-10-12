@@ -80,7 +80,11 @@ export class Ribbon {
     this.build(crosses);
     for (const t of this.triggers) {
       const r = t.el.getBoundingClientRect();
-      t.y = r.top + sy + (t.at === 'center' ? r.height / 2 : Math.min(40, r.height * 0.2));
+      // 'early' — как только верх элемента показался внизу экрана (кончик ленты идёт на 64–78 % высоты)
+      t.y =
+        t.at === 'early'
+          ? r.top + sy - this.vh * (vw < 768 ? 0.12 : 0.26)
+          : r.top + sy + (t.at === 'center' ? r.height / 2 : Math.min(40, r.height * 0.2));
     }
     for (const t of this.taps) {
       const r = t.el.getBoundingClientRect();

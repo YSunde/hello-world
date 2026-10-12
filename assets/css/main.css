@@ -4822,3 +4822,7 @@ main,
 .doc .req {
   border-top: 0;
 }
+/* въезд людей короче — лучи бьют, пока человек на экране (правка 12.10) */
+.js .who[data-slide-from].is-on {
+  transition-duration: 0.75s;
+}

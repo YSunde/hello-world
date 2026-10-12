@@ -876,7 +876,8 @@ const ribbon = new Ribbon({
     if (key.startsWith('who:')) {
       const w = t.el;
       w.classList.toggle('is-on', on);
-      if (on) fireBeams(w, $(whoTarget[key.slice(4)]), { delay: 950 });
+      // лучи — пока человек ещё доезжает: не ждать конца въезда, иначе их видно уже после прокрутки
+      if (on) fireBeams(w, $(whoTarget[key.slice(4)]), { delay: 480 });
     } else if (key.startsWith('pkg-')) {
       document.getElementById(key)?.classList.toggle('is-charged', on);
       // зачёркивание «Сам себе режиссёр» — разряд пробегает по линии, на конце искры
@@ -896,7 +897,7 @@ const ribbon = new Ribbon({
     }
   },
 });
-['services', 'comparison', 'contact'].forEach((k) => ribbon.watch(`who:${k}`, $(`[data-who="${k}"]`)));
+['services', 'comparison', 'contact'].forEach((k) => ribbon.watch(`who:${k}`, $(`[data-who="${k}"]`), 'early'));
 $$('[data-tap]').forEach((el) => ribbon.tap(el.dataset.tap, el));
 $$('[data-pro]').forEach((el, i) => ribbon.watch(`pro:${i}`, el));
 $$('.section__title').forEach((el) => ribbon.watch(`h:${el.id}`, el));
@@ -905,7 +906,7 @@ const measureAll = () => ribbon.measure();
   measureAll();
   setTimeout(measureAll, 600);
   // баннер: первый залп лазеров из глаз в заголовок
-  heroZap($('.hero__slide.is-active .roll'), 1500);
+  heroZap($('.hero__slide.is-active .roll'), 900);
 });
 addEventListener('load', measureAll);
 addEventListener('scroll', () => ribbon.kick(), { passive: true });
