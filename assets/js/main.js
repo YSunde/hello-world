@@ -467,6 +467,7 @@ function setSlide(i) {
   // быстрые повторные переключения: недоигранные «барабаны» отменяются, текст всегда на месте
   slides.forEach((s) => s.querySelectorAll('.roll').forEach((r) => r.getAnimations?.().forEach((a) => a.cancel())));
   slider?.getAnimations?.().forEach((a) => a.cancel());
+  slider?.classList.remove('is-resizing');
   const h0 = slider?.offsetHeight || 0;
   const prev = slides[current];
   prev.classList.remove('is-active', 'is-entering');
@@ -487,9 +488,15 @@ function setSlide(i) {
       { duration: 640, easing: E }
     );
     // высота блока плавно подстраивается под новый слайд; на время роста лишнее обрезается
+    // классом (overflow в ключевых кадрах Firefox и Safari не анимируют — текст ложился на кнопки)
     const h1 = slider?.offsetHeight || 0;
-    if (slider && Math.abs(h1 - h0) > 2)
-      slider.animate([{ height: h0 + 'px', overflow: 'hidden' }, { height: h1 + 'px', overflow: 'hidden' }], { duration: 460, easing: 'cubic-bezier(.3,.7,.2,1)' });
+    if (slider && Math.abs(h1 - h0) > 2) {
+      slider.classList.add('is-resizing');
+      const a = slider.animate([{ height: h0 + 'px' }, { height: h1 + 'px' }], { duration: 460, easing: 'cubic-bezier(.3,.7,.2,1)' });
+      const done = () => slider.classList.remove('is-resizing');
+      a.onfinish = done;
+      a.oncancel = done;
+    }
     heroZap(next.querySelector('.roll'), 480);
   }
   queueMicrotask(() => autoSchedule?.());

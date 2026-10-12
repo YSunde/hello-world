@@ -3983,3 +3983,19 @@ main,
 .case__teaser {
   max-height: calc(1.5em * 4);
 }
+/* пока высота блока слайдов меняется — всё, что ниже его края, обрезано (запас сверху — под Й и Ё) */
+.js .hero__slides {
+  padding-top: 28px;
+  margin-top: -28px;
+}
+.hero__slides.is-resizing {
+  overflow: hidden;
+}
+/* секция сразу за секцией (без полосы-прыжка молнии): верхний отступ втрое меньше — без «дыр» над кейсами и брифом */
+.section + .section {
+  padding-top: calc(var(--section-y) * 0.35);
+}
+/* у последнего пакета больше нет черты снизу — и лишний воздух под ним не нужен */
+.pkg:last-child {
+  padding-bottom: var(--s2);
+}
