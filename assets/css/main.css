@@ -4003,3 +4003,32 @@ main,
   opacity: 0.3;
   cursor: default;
 }
+/* управление слайдером — над заголовком: стрелки не двигаются при смене слайдов */
+.hero__nav {
+  margin: 0 0 var(--s3) -10px;
+}
+@media (min-width: 900px) {
+  .hero__nav {
+    margin-bottom: var(--s4);
+  }
+}
+/* лазеры из глаз — чуть толще */
+.beam__glow {
+  stroke-width: 32;
+}
+.beam__body {
+  stroke-width: 9.5;
+}
+.beam__core {
+  stroke-width: 3.2;
+}
+.cases__track.is-dragging {
+  scroll-snap-type: none;
+  cursor: grabbing;
+  user-select: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cases__track {
+    cursor: grab;
+  }
+}

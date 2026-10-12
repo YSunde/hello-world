@@ -459,33 +459,46 @@ const slides = $$('[data-slide]');
 const counter = $('[data-current]');
 const ticks = $$('.slider-ctrl__ticks i');
 let current = 0;
+let lastFlip = 0;
 function setSlide(i) {
   const n = slides.length;
   i = (i + n) % n;
   if (i === current) return;
   const dir = i > current || (current === n - 1 && i === 0) ? 1 : -1;
-  // быстрые повторные переключения: недоигранные «барабаны» отменяются, текст всегда на месте
-  slides.forEach((s) => s.querySelectorAll('.roll').forEach((r) => r.getAnimations?.().forEach((a) => a.cancel())));
+  // частые нажатия (чаще чем раз в 0,7 с): слайд меняется сразу, без «барабана» и затухания —
+  // иначе каждое нажатие запускало въезд с нуля и текст всё время был полупрозрачным
+  const now = performance.now();
+  const quick = now - lastFlip < 700;
+  lastFlip = now;
+  // недоигранные анимации предыдущих переключений снимаются — текст всегда на месте
+  slides.forEach((s) => {
+    s.classList.remove('is-entering');
+    s.querySelectorAll('.roll, .hero__lead').forEach((r) => r.getAnimations?.().forEach((a) => a.cancel()));
+  });
   slider?.getAnimations?.().forEach((a) => a.cancel());
   slider?.classList.remove('is-resizing');
   const h0 = slider?.offsetHeight || 0;
   const prev = slides[current];
-  prev.classList.remove('is-active', 'is-entering');
+  prev.classList.remove('is-active');
   prev.inert = true;
   prev.setAttribute('aria-hidden', 'true');
   const next = slides[i];
   next.inert = false;
   next.removeAttribute('aria-hidden');
   next.classList.add('is-active');
-  if (!reduce()) {
-    next.classList.remove('is-entering');
+  current = i;
+  if (counter) counter.textContent = String(i + 1);
+  ticks.forEach((t, k) => t.classList.toggle('is-on', k === i));
+  queueMicrotask(() => autoSchedule?.());
+  if (reduce() || quick) return;
+  // эффекты — отдельно: если в каком-то браузере что-то из них не сработает, слайд уже переключён
+  try {
     void next.offsetWidth;
     next.classList.add('is-entering');
     const E = 'cubic-bezier(.7,0,.2,1)';
-    prev.querySelector('.roll')?.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${-105 * dir}%)` }], { duration: 420, easing: E });
     next.querySelector('.roll')?.animate(
-      [{ transform: `translateY(${105 * dir}%)`, opacity: 0 }, { opacity: 1, offset: 0.35 }, { transform: `translateY(${-6 * dir}%)`, offset: 0.78 }, { transform: 'translateY(0)', opacity: 1 }],
-      { duration: 640, easing: E }
+      [{ transform: `translateY(${105 * dir}%)`, opacity: 0 }, { opacity: 1, offset: 0.28 }, { transform: `translateY(${-6 * dir}%)`, offset: 0.78 }, { transform: 'translateY(0)', opacity: 1 }],
+      { duration: 600, easing: E }
     );
     // высота блока плавно подстраивается под новый слайд; на время роста лишнее обрезается
     // классом (overflow в ключевых кадрах Firefox и Safari не анимируют — текст ложился на кнопки)
@@ -493,16 +506,15 @@ function setSlide(i) {
     if (slider && Math.abs(h1 - h0) > 2) {
       slider.classList.add('is-resizing');
       const a = slider.animate([{ height: h0 + 'px' }, { height: h1 + 'px' }], { duration: 460, easing: 'cubic-bezier(.3,.7,.2,1)' });
-      const done = () => slider.classList.remove('is-resizing');
+      // событие отмены приходит позже: снимаем класс, только если это всё ещё текущая анимация
+      const done = () => slider.getAnimations?.().length || slider.classList.remove('is-resizing');
       a.onfinish = done;
       a.oncancel = done;
     }
     heroZap(next.querySelector('.roll'), 480);
+  } catch {
+    next.classList.remove('is-entering');
   }
-  queueMicrotask(() => autoSchedule?.());
-  current = i;
-  if (counter) counter.textContent = String(i + 1);
-  ticks.forEach((t, k) => t.classList.toggle('is-on', k === i));
 }
 /* баннер не меняет высоту при смене смыслов: блок текста заранее занимает место самого длинного
    слайда, а запас уходит вниз, под кнопки (заголовок всегда сверху, без пустоты посередине) */
@@ -1271,19 +1283,14 @@ if (quiz) {
 const casesTrack = $('[data-cases]');
 if (casesTrack) {
   const cards = $$('[data-case]', casesTrack);
-  const nEl = $('[data-cases-n]');
-  const stepW = () => (cards[1] ? cards[1].offsetLeft - cards[0].offsetLeft : casesTrack.clientWidth);
-  const curIdx = () => Math.round(casesTrack.scrollLeft / Math.max(1, stepW()));
   const prevB = $('[data-cases-prev]');
   const nextB = $('[data-cases-next]');
-  // на широком экране видно сразу несколько дел: у правого края ленты счётчик показывает последнее
+  const stepW = () => (cards[1] ? cards[1].offsetLeft - cards[0].offsetLeft : casesTrack.clientWidth);
+  // без цифр: стрелки просто листают ленту и гаснут на её краях
   const upd = () => {
     const max = casesTrack.scrollWidth - casesTrack.clientWidth;
-    const atEnd = casesTrack.scrollLeft >= max - 4;
-    const atStart = casesTrack.scrollLeft <= 4;
-    if (nEl) nEl.textContent = String(atEnd ? cards.length : Math.min(cards.length, curIdx() + 1));
-    prevB?.setAttribute('aria-disabled', String(atStart));
-    nextB?.setAttribute('aria-disabled', String(atEnd));
+    prevB?.setAttribute('aria-disabled', String(casesTrack.scrollLeft <= 4));
+    nextB?.setAttribute('aria-disabled', String(casesTrack.scrollLeft >= max - 4));
   };
   upd();
   addEventListener('resize', upd);
@@ -1294,6 +1301,34 @@ if (casesTrack) {
   casesTrack.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight') (e.preventDefault(), move(1));
     if (e.key === 'ArrowLeft') (e.preventDefault(), move(-1));
+  });
+  // мышью ленту можно тянуть, как пальцем; после перетаскивания клик по карточке не срабатывает
+  let drag = null;
+  casesTrack.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    drag = { x: e.clientX, left: casesTrack.scrollLeft, moved: false };
+  });
+  addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) > 6) {
+      drag.moved = true;
+      casesTrack.classList.add('is-dragging');
+    }
+    if (drag.moved) casesTrack.scrollLeft = drag.left - dx;
+  });
+  addEventListener('pointerup', () => {
+    if (!drag) return;
+    const moved = drag.moved;
+    drag = null;
+    if (!moved) return;
+    casesTrack.classList.remove('is-dragging');
+    // доводка до ближайшей карточки
+    const w = stepW();
+    casesTrack.scrollTo({ left: Math.round(casesTrack.scrollLeft / w) * w, behavior: gentle() ? 'auto' : 'smooth' });
+    const stop = (ev) => (ev.preventDefault(), ev.stopPropagation());
+    casesTrack.addEventListener('click', stop, { capture: true, once: true });
+    setTimeout(() => casesTrack.removeEventListener('click', stop, { capture: true }), 0);
   });
   // печать «Выполнено» с хлопком и искрами — каждый раз, когда карточка появляется
   const stampIO = new IntersectionObserver(
