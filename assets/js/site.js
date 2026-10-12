@@ -2768,11 +2768,23 @@ if (casesTrack) {
   const nEl = $('[data-cases-n]');
   const stepW = () => (cards[1] ? cards[1].offsetLeft - cards[0].offsetLeft : casesTrack.clientWidth);
   const curIdx = () => Math.round(casesTrack.scrollLeft / Math.max(1, stepW()));
-  const upd = () => nEl && (nEl.textContent = String(Math.min(cards.length, curIdx() + 1)));
+  const prevB = $('[data-cases-prev]');
+  const nextB = $('[data-cases-next]');
+  // на широком экране видно сразу несколько дел: у правого края ленты счётчик показывает последнее
+  const upd = () => {
+    const max = casesTrack.scrollWidth - casesTrack.clientWidth;
+    const atEnd = casesTrack.scrollLeft >= max - 4;
+    const atStart = casesTrack.scrollLeft <= 4;
+    if (nEl) nEl.textContent = String(atEnd ? cards.length : Math.min(cards.length, curIdx() + 1));
+    prevB?.setAttribute('aria-disabled', String(atStart));
+    nextB?.setAttribute('aria-disabled', String(atEnd));
+  };
+  upd();
+  addEventListener('resize', upd);
   casesTrack.addEventListener('scroll', () => requestAnimationFrame(upd), { passive: true });
   const move = (d) => casesTrack.scrollBy({ left: d * stepW(), behavior: gentle() ? 'auto' : 'smooth' });
-  $('[data-cases-prev]')?.addEventListener('click', () => move(-1));
-  $('[data-cases-next]')?.addEventListener('click', () => move(1));
+  prevB?.addEventListener('click', () => move(-1));
+  nextB?.addEventListener('click', () => move(1));
   casesTrack.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight') (e.preventDefault(), move(1));
     if (e.key === 'ArrowLeft') (e.preventDefault(), move(-1));
